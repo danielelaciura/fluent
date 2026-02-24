@@ -1,21 +1,20 @@
 {
-  "name": "meetfluent",
-  "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
-    "test": "turbo test"
-  },
-  "devDependencies": {
-    "turbo": "^2"
-  },
-  "packageManager": "npm@10.9.2",
-  "engines": {
-    "node": ">=20"
-  }
+	"name": "meetfluent",
+	"private": true,
+	"type": "module",
+	"workspaces": ["apps/*", "packages/*"],
+	"scripts": {
+		"build": "npm run build --workspaces --if-present",
+		"dev": "npm run dev --workspace=@meetfluent/api",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.0",
+		"typescript": "^5.7.0"
+	},
+	"packageManager": "npm@10.9.2",
+	"engines": {
+		"node": ">=20"
+	}
 }
