@@ -1,13 +1,13 @@
 export type SubscriptionTier = "free" | "pro" | "team";
 
-export type SessionStatus = "uploading" | "processing" | "complete" | "error";
+export type SessionStatus = "created" | "uploading" | "processing" | "transcribed" | "complete" | "error";
 
 export type CEFRLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
 export interface User {
 	id: string;
 	email: string;
-	name: string;
+	name: string | null;
 	subscriptionTier: SubscriptionTier;
 	createdAt: Date;
 }
@@ -15,9 +15,10 @@ export interface User {
 export interface Session {
 	id: string;
 	userId: string;
-	durationSec: number;
-	audioUrl: string;
+	durationSeconds: number | null;
+	audioUrl: string | null;
 	status: SessionStatus;
+	errorMessage: string | null;
 	createdAt: Date;
 }
 
@@ -25,7 +26,6 @@ export interface TranscriptionWord {
 	word: string;
 	start: number;
 	end: number;
-	confidence: number;
 }
 
 export interface Report {
@@ -36,6 +36,7 @@ export interface Report {
 	grammar: GrammarFeedback;
 	vocabulary: VocabularyFeedback;
 	fluency: FluencyFeedback;
+	businessEnglish: BusinessEnglishFeedback;
 	tips: string[];
 	createdAt: Date;
 }
@@ -43,32 +44,39 @@ export interface Report {
 export interface GrammarFeedback {
 	score: number;
 	errors: GrammarError[];
+	summary: string;
 }
 
 export interface GrammarError {
 	original: string;
-	correction: string;
+	corrected: string;
+	rule: string;
 	explanation: string;
-	startTime: number;
-	endTime: number;
 }
 
 export interface VocabularyFeedback {
 	score: number;
-	overusedWords: string[];
-	suggestions: VocabSuggestion[];
+	range_assessment: string;
+	overused_words: OverusedWord[];
+	good_usage: string[];
 }
 
-export interface VocabSuggestion {
-	original: string;
-	alternative: string;
-	context: string;
+export interface OverusedWord {
+	word: string;
+	count: number;
+	alternatives: string[];
 }
 
 export interface FluencyFeedback {
 	score: number;
-	fillerCount: number;
-	fillerWords: Record<string, number>;
-	falseStarts: number;
-	selfCorrections: number;
+	filler_words: Record<string, number>;
+	false_starts: number;
+	incomplete_sentences: number;
+	summary: string;
+}
+
+export interface BusinessEnglishFeedback {
+	score: number;
+	strengths: string[];
+	improvements: string[];
 }

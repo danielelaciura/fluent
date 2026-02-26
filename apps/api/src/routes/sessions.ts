@@ -1,0 +1,212 @@
+import { and, eq } from "drizzle-orm";
+import type { FastifyInstance } from "fastify";
+import { db } from "../db/index.js";
+import { reports, sessions } from "../db/schema.js";
+import { sessionQueue } from "../queue/index.js";
+import { getUploadUrl, uploadAudio } from "../services/storage.js";
+
+export default async function sessionRoutes(fastify: FastifyInstance) {
+	// All routes require authentication
+	fastify.addHook("onRequest", fastify.authenticate);
+
+	// POST /sessions — create a new session
+	fastify.post("/sessions", async (request) => {
+		const [session] = await db
+			.insert(sessions)
+			.values({ userId: request.user.userId })
+			.returning({ id: sessions.id, status: sessions.status, createdAt: sessions.createdAt });
+
+		return { sessionId: session.id };
+	});
+
+	// POST /sessions/:id/upload-url — get pre-signed upload URL
+	fastify.post<{ Params: { id: string } }>("/sessions/:id/upload-url", async (request, reply) => {
+		const { id } = request.params;
+
+		const [session] = await db
+			.select({ id: sessions.id, status: sessions.status })
+			.from(sessions)
+			.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)));
+
+		if (!session) {
+			reply.code(404).send({ error: "Session not found" });
+			return;
+		}
+
+		if (session.status !== "created") {
+			reply.code(409).send({ error: `Cannot upload: session status is '${session.status}'` });
+			return;
+		}
+
+		const uploadUrl = await getUploadUrl(id);
+
+		await db
+			.update(sessions)
+			.set({ status: "uploading", updatedAt: new Date() })
+			.where(eq(sessions.id, id));
+
+		return { uploadUrl };
+	});
+
+	// GET /sessions/:id — get session status
+	fastify.get<{ Params: { id: string } }>("/sessions/:id", async (request, reply) => {
+		const { id } = request.params;
+
+		const [session] = await db
+			.select({
+				id: sessions.id,
+				status: sessions.status,
+				durationSeconds: sessions.durationSeconds,
+				errorMessage: sessions.errorMessage,
+				createdAt: sessions.createdAt,
+			})
+			.from(sessions)
+			.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)));
+
+		if (!session) {
+			reply.code(404).send({ error: "Session not found" });
+			return;
+		}
+
+		return session;
+	});
+
+	// GET /sessions/:id/report — get the analysis report
+	fastify.get<{ Params: { id: string } }>("/sessions/:id/report", async (request, reply) => {
+		const { id } = request.params;
+
+		// Verify the session belongs to the user
+		const [session] = await db
+			.select({ id: sessions.id, status: sessions.status })
+			.from(sessions)
+			.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)));
+
+		if (!session) {
+			reply.code(404).send({ error: "Session not found" });
+			return;
+		}
+
+		if (session.status !== "complete") {
+			reply.code(202).send({ status: session.status });
+			return;
+		}
+
+		const [report] = await db.select().from(reports).where(eq(reports.sessionId, id));
+
+		if (!report) {
+			reply.code(404).send({ error: "Report not found" });
+			return;
+		}
+
+		return {
+			id: report.id,
+			sessionId: report.sessionId,
+			overallScore: report.overallScore,
+			cefrLevel: report.cefrLevel,
+			grammar: report.grammarJson,
+			vocabulary: report.vocabularyJson,
+			fluency: report.fluencyJson,
+			businessEnglish: report.businessEnglishJson,
+			tips: report.tips,
+			createdAt: report.createdAt,
+		};
+	});
+
+	// POST /sessions/:id/upload — direct upload: receives audio, stores in R2, triggers processing
+	fastify.post<{ Params: { id: string }; Querystring: { durationSeconds?: string } }>(
+		"/sessions/:id/upload",
+		async (request, reply) => {
+			const { id } = request.params;
+			const durationSeconds = request.query.durationSeconds
+				? Number(request.query.durationSeconds)
+				: null;
+
+			const [session] = await db
+				.select({ id: sessions.id, status: sessions.status })
+				.from(sessions)
+				.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)));
+
+			if (!session) {
+				reply.code(404).send({ error: "Session not found" });
+				return;
+			}
+
+			if (session.status !== "created") {
+				reply.code(409).send({
+					error: `Cannot upload: session status is '${session.status}'`,
+				});
+				return;
+			}
+
+			const body = await request.file();
+			if (!body) {
+				reply.code(400).send({ error: "No file uploaded" });
+				return;
+			}
+
+			const chunks: Buffer[] = [];
+			for await (const chunk of body.file) {
+				chunks.push(chunk);
+			}
+			const buffer = Buffer.concat(chunks);
+
+			await uploadAudio(id, buffer, body.mimetype || "audio/webm");
+
+			await db
+				.update(sessions)
+				.set({
+					status: "processing",
+					audioUrl: `audio/${id}.webm`,
+					durationSeconds,
+					updatedAt: new Date(),
+				})
+				.where(eq(sessions.id, id));
+
+			await sessionQueue.add("process", { sessionId: id });
+			fastify.log.info({ sessionId: id }, "Session uploaded and queued for processing");
+
+			return { status: "processing" };
+		},
+	);
+
+	// POST /sessions/:id/complete-upload — mark upload as done, trigger processing
+	fastify.post<{ Params: { id: string }; Body: { durationSeconds?: number } }>(
+		"/sessions/:id/complete-upload",
+		async (request, reply) => {
+			const { id } = request.params;
+			const { durationSeconds } = request.body || {};
+
+			const [session] = await db
+				.select({ id: sessions.id, status: sessions.status })
+				.from(sessions)
+				.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)));
+
+			if (!session) {
+				reply.code(404).send({ error: "Session not found" });
+				return;
+			}
+
+			if (session.status !== "uploading") {
+				reply.code(409).send({
+					error: `Cannot complete upload: session status is '${session.status}'`,
+				});
+				return;
+			}
+
+			await db
+				.update(sessions)
+				.set({
+					status: "processing",
+					audioUrl: `audio/${id}.webm`,
+					durationSeconds: durationSeconds ?? null,
+					updatedAt: new Date(),
+				})
+				.where(eq(sessions.id, id));
+
+			await sessionQueue.add("process", { sessionId: id });
+			fastify.log.info({ sessionId: id }, "Session queued for processing");
+
+			return { status: "processing" };
+		},
+	);
+}

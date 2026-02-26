@@ -1,12 +1,29 @@
 import "dotenv/config";
+import multipart from "@fastify/multipart";
 import Fastify from "fastify";
+import { sql } from "./db/index.js";
+import authenticate from "./plugins/authenticate.js";
+import { startWorker } from "./queue/index.js";
+import authRoutes from "./routes/auth.js";
+import sessionRoutes from "./routes/sessions.js";
 
 const server = Fastify({
 	logger: true,
 });
 
-server.get("/health", async () => {
-	return { status: "ok" };
+server.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } }); // 200 MB
+server.register(authenticate);
+server.register(authRoutes);
+server.register(sessionRoutes);
+
+server.get("/health", async (_request, reply) => {
+	try {
+		await sql`SELECT 1`;
+		return { status: "ok", db: "connected" };
+	} catch (error) {
+		reply.code(503);
+		return { status: "error", db: "disconnected" };
+	}
 });
 
 const start = async () => {
@@ -14,6 +31,9 @@ const start = async () => {
 	const host = process.env.HOST || "0.0.0.0";
 
 	await server.listen({ port, host });
+
+	startWorker();
+	server.log.info("Session processing worker started");
 };
 
 start();

@@ -1,0 +1,31 @@
+{
+	"manifest_version": 3,
+	"name": "MeetFluent",
+	"description": "AI-powered English coaching for Google Meet calls",
+	"version": "0.1.0",
+	"action": {
+		"default_popup": "src/popup/index.html",
+		"default_icon": {
+			"16": "src/assets/icon-16.png",
+			"48": "src/assets/icon-48.png",
+			"128": "src/assets/icon-128.png"
+		}
+	},
+	"background": {
+		"service_worker": "src/background/service-worker.ts"
+	},
+	"permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture"],
+	"content_scripts": [
+		{
+			"matches": ["https://meet.google.com/*"],
+			"js": ["src/content/meet-detector.ts"],
+			"run_at": "document_idle"
+		}
+	],
+	"host_permissions": ["http://localhost:3000/*", "https://accounts.google.com/*", "https://*.r2.cloudflarestorage.com/*"],
+	"icons": {
+		"16": "src/assets/icon-16.png",
+		"48": "src/assets/icon-48.png",
+		"128": "src/assets/icon-128.png"
+	}
+}

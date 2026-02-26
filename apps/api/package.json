@@ -6,15 +6,30 @@
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsx watch src/index.ts",
-		"start": "node dist/index.js"
+		"start": "node dist/index.js",
+		"db:generate": "drizzle-kit generate",
+		"db:push": "drizzle-kit push"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.78.0",
+		"@aws-sdk/client-s3": "^3.996.0",
+		"@aws-sdk/s3-request-presigner": "^3.996.0",
+		"@fastify/multipart": "^9.4.0",
 		"@meetfluent/shared": "*",
+		"bullmq": "^5.70.1",
+		"dotenv": "^16.4.0",
+		"drizzle-orm": "^0.45.1",
 		"fastify": "^5.2.0",
-		"dotenv": "^16.4.0"
+		"fastify-plugin": "^5.1.0",
+		"google-auth-library": "^10.5.0",
+		"jsonwebtoken": "^9.0.3",
+		"openai": "^6.25.0",
+		"postgres": "^3.4.8"
 	},
 	"devDependencies": {
+		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^22.0.0",
+		"drizzle-kit": "^0.31.9",
 		"tsx": "^4.19.0"
 	}
 }
