@@ -28,3 +28,16 @@ export function scoreColor(score: number): string {
 	if (score < 70) return "#F59E0B";
 	return "#10B981";
 }
+
+const CEFR_LABELS: Record<string, string> = {
+	A1: "Beginner",
+	A2: "Elementary",
+	B1: "Intermediate",
+	B2: "Upper Intermediate",
+	C1: "Advanced",
+	C2: "Proficient",
+};
+
+export function cefrLabel(level: string): string {
+	return CEFR_LABELS[level] ?? level;
+}
