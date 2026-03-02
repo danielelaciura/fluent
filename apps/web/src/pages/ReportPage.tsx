@@ -481,25 +481,43 @@ function TipsSection({ tips }: { tips: string[] }) {
 function ReportSkeleton() {
 	return (
 		<div className="space-y-6">
-			<Skeleton className="h-4 w-48" />
+			{/* Header card skeleton */}
 			<Card>
 				<CardContent>
-					<div className="flex flex-wrap items-center gap-6">
-						<Skeleton className="h-6 w-32" />
-						<Skeleton className="h-10 w-16" />
-						<Skeleton className="h-24 w-24 rounded-full" />
+					<div className="mb-5 flex items-center justify-between">
+						<Skeleton className="h-4 w-48" />
+						<Skeleton className="h-8 w-20" />
 					</div>
-					<div className="mt-4 flex gap-3">
-						{[1, 2, 3, 4].map((n) => (
-							<Skeleton key={n} className="h-20 flex-1" />
-						))}
+					<Separator className="mb-5" />
+					<div className="flex flex-wrap items-center gap-8">
+						<div className="flex items-center gap-4">
+							<Skeleton className="size-24 rounded-full" />
+							<div className="space-y-2">
+								<Skeleton className="h-8 w-12" />
+								<Skeleton className="h-4 w-28" />
+							</div>
+						</div>
+						<div className="flex flex-1 justify-around gap-2">
+							{[1, 2, 3, 4].map((n) => (
+								<div key={n} className="flex flex-col items-center gap-1">
+									<Skeleton className="size-11 rounded-full" />
+									<Skeleton className="h-3 w-14" />
+								</div>
+							))}
+						</div>
 					</div>
 				</CardContent>
 			</Card>
+			{/* Highlights strip skeleton */}
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+				{[1, 2, 3, 4].map((n) => (
+					<Skeleton key={n} className="h-20 rounded-lg" />
+				))}
+			</div>
+			{/* Tabs skeleton */}
 			<div className="space-y-3">
 				<Skeleton className="h-10 w-full" />
 				<Skeleton className="h-32 w-full" />
-				<Skeleton className="h-24 w-full" />
 			</div>
 		</div>
 	);
