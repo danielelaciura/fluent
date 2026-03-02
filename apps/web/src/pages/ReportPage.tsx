@@ -230,34 +230,38 @@ function GrammarSection({ grammar }: { grammar: GrammarFeedback }) {
 	return (
 		<div>
 			<SummaryBox text={grammar.summary} />
-			<div className="mt-4 space-y-3">
-				{grammar.errors.length === 0 ? (
-					<p className="py-6 text-center font-medium text-green-600">
-						No grammar errors detected. Great job! 🎉
-					</p>
-				) : (
-					grammar.errors.map((err, i) => (
-						// biome-ignore lint/suspicious/noArrayIndexKey: static list from API
-						<Card key={i}>
-							<CardContent className="space-y-2">
-								<Badge variant="secondary" className="bg-blue-50 text-blue-700">
-									{err.rule}
-								</Badge>
-								<p className="text-sm text-destructive line-through">{err.original}</p>
-								<p className="text-sm font-medium text-green-600">{err.corrected}</p>
-								<p className="text-xs leading-relaxed text-muted-foreground">
-									{err.explanation}
-								</p>
-							</CardContent>
-						</Card>
-					))
-				)}
-			</div>
-			{grammar.errors.length > 0 && (
-				<p className="mt-3 text-right text-xs text-muted-foreground">
-					{grammar.errors.length} error{grammar.errors.length !== 1 ? "s" : ""} found in this
-					session
+
+			<Separator className="my-4" />
+
+			{grammar.errors.length === 0 ? (
+				<p className="py-6 text-center font-medium text-green-600">
+					No grammar errors detected. Great job! 🎉
 				</p>
+			) : (
+				<>
+					<div className="mb-3">
+						<Badge variant="secondary">
+							{grammar.errors.length} error{grammar.errors.length !== 1 ? "s" : ""}
+						</Badge>
+					</div>
+					<div className="space-y-3">
+						{grammar.errors.map((err, i) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: static list from API
+							<Card key={i}>
+								<CardContent className="space-y-2 p-5">
+									<Badge variant="secondary" className="bg-blue-50 text-blue-700">
+										{err.rule}
+									</Badge>
+									<p className="text-sm text-destructive line-through">{err.original}</p>
+									<p className="text-sm font-medium text-green-600">{err.corrected}</p>
+									<p className="text-xs leading-relaxed text-muted-foreground">
+										{err.explanation}
+									</p>
+								</CardContent>
+							</Card>
+						))}
+					</div>
+				</>
 			)}
 		</div>
 	);
