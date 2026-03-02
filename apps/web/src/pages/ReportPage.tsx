@@ -78,31 +78,52 @@ function SummaryBox({ text }: { text: string }) {
 	);
 }
 
-function ScoreCircle({ score }: { score: number }) {
-	const r = 38;
+function ScoreCircle({ score, size = "lg" }: { score: number; size?: "sm" | "lg" }) {
+	const isSmall = size === "sm";
+	const r = isSmall ? 18 : 38;
+	const strokeWidth = isSmall ? 4 : 8;
+	const svgSize = isSmall ? 44 : 96;
 	const circ = 2 * Math.PI * r;
 	const arc = (score / 100) * circ;
 	const color = scoreColor(score);
 	return (
-		<div className="relative flex h-24 w-24 items-center justify-center">
-			<svg width="96" height="96" className="absolute inset-0 -rotate-90" aria-hidden="true">
-				<circle cx="48" cy="48" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
+		<div
+			className="relative flex items-center justify-center"
+			style={{ width: svgSize, height: svgSize }}
+		>
+			<svg
+				width={svgSize}
+				height={svgSize}
+				className="absolute inset-0 -rotate-90"
+				aria-hidden="true"
+			>
 				<circle
-					cx="48"
-					cy="48"
+					cx={svgSize / 2}
+					cy={svgSize / 2}
+					r={r}
+					fill="none"
+					stroke="hsl(var(--border))"
+					strokeWidth={strokeWidth}
+				/>
+				<circle
+					cx={svgSize / 2}
+					cy={svgSize / 2}
 					r={r}
 					fill="none"
 					stroke={color}
-					strokeWidth="8"
+					strokeWidth={strokeWidth}
 					strokeDasharray={`${arc} ${circ - arc}`}
 					strokeLinecap="round"
 				/>
 			</svg>
 			<div className="relative text-center">
-				<p className="text-2xl font-bold leading-none" style={{ color }}>
+				<p
+					className={`font-bold leading-none ${isSmall ? "text-xs" : "text-2xl"}`}
+					style={{ color }}
+				>
 					{score}
 				</p>
-				<p className="text-xs text-muted-foreground">/100</p>
+				{!isSmall && <p className="text-xs text-muted-foreground">/100</p>}
 			</div>
 		</div>
 	);
