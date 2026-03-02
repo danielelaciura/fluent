@@ -268,6 +268,10 @@ function GrammarSection({ grammar }: { grammar: GrammarFeedback }) {
 }
 
 function VocabularySection({ vocabulary }: { vocabulary: VocabularyFeedback }) {
+	const maxCount = vocabulary.overused_words.length > 0
+		? Math.max(...vocabulary.overused_words.map((w) => w.count))
+		: 1;
+
 	return (
 		<div className="space-y-5">
 			<SummaryBox text={vocabulary.range_assessment} />
@@ -284,12 +288,23 @@ function VocabularySection({ vocabulary }: { vocabulary: VocabularyFeedback }) {
 							// biome-ignore lint/suspicious/noArrayIndexKey: static list from API
 							<Card key={i}>
 								<CardContent>
-									<p className="mb-1 text-sm font-semibold">
-										&ldquo;{w.word}&rdquo;
-										<span className="ml-2 text-xs font-normal text-muted-foreground">
-											used {w.count} times
+									<div className="mb-2 flex items-center gap-3">
+										<span className="text-sm font-semibold">
+											&ldquo;{w.word}&rdquo;
 										</span>
-									</p>
+										<div className="h-1.5 flex-1 rounded-full bg-muted">
+											<div
+												className="h-1.5 rounded-full"
+												style={{
+													width: `${(w.count / maxCount) * 100}%`,
+													backgroundColor: "#F59E0B",
+												}}
+											/>
+										</div>
+										<span className="shrink-0 text-xs text-muted-foreground">
+											{w.count}×
+										</span>
+									</div>
 									<p className="mb-2 text-xs text-muted-foreground">Try instead:</p>
 									<div className="flex flex-wrap gap-1.5">
 										{w.alternatives.map((alt) => (
@@ -308,13 +323,11 @@ function VocabularySection({ vocabulary }: { vocabulary: VocabularyFeedback }) {
 			{vocabulary.good_usage.length > 0 && (
 				<div>
 					<h3 className="mb-3 text-sm font-semibold">Good Usage</h3>
-					<div className="space-y-2 rounded-lg border border-green-100 bg-green-50 p-4">
-						{vocabulary.good_usage.map((phrase, i) => (
-							// biome-ignore lint/suspicious/noArrayIndexKey: static list from API
-							<div key={i} className="flex items-start gap-2 text-sm text-green-800">
-								<span className="mt-0.5 text-green-500">✓</span>
-								<span>&ldquo;{phrase}&rdquo;</span>
-							</div>
+					<div className="flex flex-wrap gap-2 rounded-lg border border-green-100 bg-green-50 p-4">
+						{vocabulary.good_usage.map((phrase) => (
+							<Badge key={phrase} variant="secondary" className="bg-green-100 text-green-800">
+								{phrase}
+							</Badge>
 						))}
 					</div>
 				</div>
