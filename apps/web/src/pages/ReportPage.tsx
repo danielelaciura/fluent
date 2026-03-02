@@ -8,7 +8,7 @@ import { Separator } from "../components/ui/separator";
 import { Skeleton } from "../components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { fetchApi } from "../lib/api";
-import { cefrColor, formatDate, formatDuration, scoreColor } from "../lib/format";
+import { cefrColor, cefrLabel, formatDate, formatDuration, scoreColor } from "../lib/format";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -126,27 +126,6 @@ function ScoreCircle({ score, size = "lg" }: { score: number; size?: "sm" | "lg"
 				{!isSmall && <p className="text-xs text-muted-foreground">/100</p>}
 			</div>
 		</div>
-	);
-}
-
-function MiniScoreCard({ label, score, icon }: { label: string; score: number; icon: string }) {
-	const color = scoreColor(score);
-	return (
-		<Card className="flex-1 py-3">
-			<CardContent className="p-3 text-center">
-				<p className="mb-1 text-lg">{icon}</p>
-				<p className="mb-1 text-xs text-muted-foreground">{label}</p>
-				<p className="text-lg font-bold" style={{ color }}>
-					{score}
-				</p>
-				<div className="mt-1.5 h-1.5 rounded-full bg-muted">
-					<div
-						className="h-1.5 rounded-full"
-						style={{ width: `${score}%`, backgroundColor: color }}
-					/>
-				</div>
-			</CardContent>
-		</Card>
 	);
 }
 
@@ -501,47 +480,60 @@ export default function ReportPage() {
 
 	return (
 		<div>
-			{/* Breadcrumb + export */}
-			<div className="no-print mb-4 flex items-center justify-between">
-				<p className="text-sm text-muted-foreground">
-					<Link to="/" className="hover:underline">
-						Sessions
-					</Link>
-					{" › "}
-					Report {sessionDate}
-				</p>
-				<Button variant="outline" size="sm" onClick={() => window.print()}>
-					<Printer />
-					Export Report
-				</Button>
-			</div>
-
 			{/* Header card */}
 			<Card className="mb-6">
 				<CardContent>
-					<div className="mb-5 flex flex-wrap items-center gap-6">
-						<div>
-							<p className="font-medium">{sessionDate}</p>
-							<p className="text-xs text-muted-foreground">
-								{formatDuration(session?.durationSeconds ?? null)}
-							</p>
-						</div>
-						<div className="text-center">
-							<p className="text-4xl font-bold" style={{ color: cefrColor(report.cefrLevel) }}>
-								{report.cefrLevel}
-							</p>
-							<p className="text-xs text-muted-foreground">CEFR Level</p>
-						</div>
-						<div className="flex flex-col items-center gap-1">
-							<ScoreCircle score={report.overallScore} />
-							<p className="text-xs text-muted-foreground">Overall</p>
-						</div>
+					{/* Top bar: breadcrumb + export */}
+					<div className="no-print mb-5 flex items-center justify-between">
+						<p className="text-sm text-muted-foreground">
+							<Link to="/" className="hover:underline">
+								Sessions
+							</Link>
+							{" › "}
+							{sessionDate} · {formatDuration(session?.durationSeconds ?? null)}
+						</p>
+						<Button variant="outline" size="sm" onClick={() => window.print()}>
+							<Printer className="mr-1.5 size-4" />
+							Export
+						</Button>
 					</div>
-					<div className="flex flex-wrap gap-3 sm:flex-nowrap">
-						<MiniScoreCard label="Grammar" score={report.grammar.score} icon="📝" />
-						<MiniScoreCard label="Vocabulary" score={report.vocabulary.score} icon="📚" />
-						<MiniScoreCard label="Fluency" score={report.fluency.score} icon="🎙️" />
-						<MiniScoreCard label="Business" score={report.businessEnglish.score} icon="💼" />
+
+					<Separator className="mb-5" />
+
+					{/* Hero score + category rings */}
+					<div className="flex flex-wrap items-center gap-8">
+						{/* Hero: overall score + CEFR */}
+						<div className="flex items-center gap-4">
+							<ScoreCircle score={report.overallScore} />
+							<div>
+								<p
+									className="text-3xl font-bold"
+									style={{ color: cefrColor(report.cefrLevel) }}
+								>
+									{report.cefrLevel}
+								</p>
+								<p className="text-sm text-muted-foreground">
+									{cefrLabel(report.cefrLevel)}
+								</p>
+							</div>
+						</div>
+
+						<Separator orientation="vertical" className="hidden h-16 sm:block" />
+
+						{/* Category rings */}
+						<div className="flex flex-1 items-center justify-around gap-2">
+							{[
+								{ label: "Grammar", score: report.grammar.score },
+								{ label: "Vocabulary", score: report.vocabulary.score },
+								{ label: "Fluency", score: report.fluency.score },
+								{ label: "Business", score: report.businessEnglish.score },
+							].map((cat) => (
+								<div key={cat.label} className="flex flex-col items-center gap-1">
+									<ScoreCircle score={cat.score} size="sm" />
+									<p className="text-xs text-muted-foreground">{cat.label}</p>
+								</div>
+							))}
+						</div>
 					</div>
 				</CardContent>
 			</Card>
