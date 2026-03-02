@@ -129,6 +129,101 @@ function ScoreCircle({ score, size = "lg" }: { score: number; size?: "sm" | "lg"
 	);
 }
 
+function HighlightsStrip({
+	report,
+	onSelectTab,
+}: {
+	report: Report;
+	onSelectTab: (tab: TabId) => void;
+}) {
+	const fillerTotal = Object.values(report.fluency.filler_words).reduce((a, b) => a + b, 0);
+	const topFiller = Object.entries(report.fluency.filler_words).sort(([, a], [, b]) => b - a)[0];
+
+	const cards: { tab: TabId; emoji: string; title: string; line1: string; line2: string; score: number }[] = [
+		{
+			tab: "grammar",
+			emoji: "📝",
+			title: "Grammar",
+			line1:
+				report.grammar.errors.length === 0
+					? "No errors detected"
+					: `${report.grammar.errors.length} error${report.grammar.errors.length !== 1 ? "s" : ""} found`,
+			line2:
+				report.grammar.errors.length > 0
+					? `Most common: ${report.grammar.errors[0].rule}`
+					: "Great job!",
+			score: report.grammar.score,
+		},
+		{
+			tab: "vocabulary",
+			emoji: "📚",
+			title: "Vocabulary",
+			line1:
+				report.vocabulary.overused_words.length === 0
+					? "Excellent range"
+					: `"${report.vocabulary.overused_words[0].word}" overused (${report.vocabulary.overused_words[0].count}×)`,
+			line2: report.vocabulary.overused_words.length > 0
+				? `${report.vocabulary.overused_words.length} word${report.vocabulary.overused_words.length !== 1 ? "s" : ""} to improve`
+				: "Good variety",
+			score: report.vocabulary.score,
+		},
+		{
+			tab: "fluency",
+			emoji: "🎙️",
+			title: "Fluency",
+			line1:
+				fillerTotal === 0
+					? "No filler words"
+					: `${fillerTotal} filler word${fillerTotal !== 1 ? "s" : ""}`,
+			line2: topFiller ? `"${topFiller[0]}" (${topFiller[1]}×)` : "Clean speech",
+			score: report.fluency.score,
+		},
+		{
+			tab: "business",
+			emoji: "💼",
+			title: "Business",
+			line1: `${report.businessEnglish.strengths.length} strength${report.businessEnglish.strengths.length !== 1 ? "s" : ""} · ${report.businessEnglish.improvements.length} to improve`,
+			line2:
+				report.businessEnglish.strengths.length > 0
+					? report.businessEnglish.strengths[0]
+					: report.businessEnglish.improvements.length > 0
+						? report.businessEnglish.improvements[0]
+						: "",
+			score: report.businessEnglish.score,
+		},
+	];
+
+	return (
+		<div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+			{cards.map((c) => (
+				<button
+					key={c.tab}
+					type="button"
+					onClick={() => onSelectTab(c.tab)}
+					className="cursor-pointer text-left"
+				>
+					<Card className="transition-colors hover:border-primary/30">
+						<CardContent className="flex items-start gap-3 p-4">
+							<span className="text-lg">{c.emoji}</span>
+							<div className="min-w-0 flex-1">
+								<div className="mb-1 flex items-center gap-2">
+									<p className="text-sm font-semibold">{c.title}</p>
+									<span
+										className="inline-block size-2 rounded-full"
+										style={{ backgroundColor: scoreColor(c.score) }}
+									/>
+								</div>
+								<p className="text-sm text-foreground">{c.line1}</p>
+								<p className="truncate text-xs text-muted-foreground">{c.line2}</p>
+							</div>
+						</CardContent>
+					</Card>
+				</button>
+			))}
+		</div>
+	);
+}
+
 // ── Section components ────────────────────────────────────────────────────────
 
 function GrammarSection({ grammar }: { grammar: GrammarFeedback }) {
@@ -537,6 +632,9 @@ export default function ReportPage() {
 					</div>
 				</CardContent>
 			</Card>
+
+			{/* Highlights strip */}
+			<HighlightsStrip report={report} onSelectTab={setActiveTab} />
 
 			{/* Tabs */}
 			<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
