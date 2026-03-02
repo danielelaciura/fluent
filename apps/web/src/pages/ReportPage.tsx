@@ -640,31 +640,71 @@ export default function ReportPage() {
 			<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
 				<div className="no-print sticky top-0 z-10 bg-background pb-4">
 					<TabsList variant="line" className="w-full">
-						{TAB_ITEMS.map((tab) => (
-							<TabsTrigger key={tab.id} value={tab.id}>
-								{tab.label}
-							</TabsTrigger>
-						))}
+						{TAB_ITEMS.map((tab) => {
+							const tabScore =
+								tab.id === "grammar"
+									? report.grammar.score
+									: tab.id === "vocabulary"
+										? report.vocabulary.score
+										: tab.id === "fluency"
+											? report.fluency.score
+											: tab.id === "business"
+												? report.businessEnglish.score
+												: null;
+							return (
+								<TabsTrigger key={tab.id} value={tab.id}>
+									{tab.label}
+									{tabScore !== null ? (
+										<span
+											className="ml-1.5 inline-block size-2 rounded-full"
+											style={{ backgroundColor: scoreColor(tabScore) }}
+										/>
+									) : (
+										<span className="ml-1">🚀</span>
+									)}
+								</TabsTrigger>
+							);
+						})}
 					</TabsList>
 				</div>
 
-				<TabsContent value="grammar">
-					<h2 className="mb-4 text-lg font-semibold">Grammar</h2>
+				<TabsContent value="grammar" className="space-y-4 pb-6">
+					<h2 className="text-lg font-semibold">
+						Grammar{" "}
+						<span className="text-sm font-normal text-muted-foreground">
+							· {report.grammar.score}/100
+						</span>
+					</h2>
 					<GrammarSection grammar={report.grammar} />
 				</TabsContent>
 
-				<TabsContent value="vocabulary">
-					<h2 className="mb-4 text-lg font-semibold">Vocabulary</h2>
+				<TabsContent value="vocabulary" className="space-y-4 pb-6">
+					<h2 className="text-lg font-semibold">
+						Vocabulary{" "}
+						<span className="text-sm font-normal text-muted-foreground">
+							· {report.vocabulary.score}/100
+						</span>
+					</h2>
 					<VocabularySection vocabulary={report.vocabulary} />
 				</TabsContent>
 
-				<TabsContent value="fluency">
-					<h2 className="mb-4 text-lg font-semibold">Fluency</h2>
+				<TabsContent value="fluency" className="space-y-4 pb-6">
+					<h2 className="text-lg font-semibold">
+						Fluency{" "}
+						<span className="text-sm font-normal text-muted-foreground">
+							· {report.fluency.score}/100
+						</span>
+					</h2>
 					<FluencySection fluency={report.fluency} />
 				</TabsContent>
 
-				<TabsContent value="business">
-					<h2 className="mb-4 text-lg font-semibold">Business English</h2>
+				<TabsContent value="business" className="space-y-4 pb-6">
+					<h2 className="text-lg font-semibold">
+						Business English{" "}
+						<span className="text-sm font-normal text-muted-foreground">
+							· {report.businessEnglish.score}/100
+						</span>
+					</h2>
 					<BusinessSection businessEnglish={report.businessEnglish} />
 				</TabsContent>
 
