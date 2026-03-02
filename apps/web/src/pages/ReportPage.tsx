@@ -339,6 +339,7 @@ function VocabularySection({ vocabulary }: { vocabulary: VocabularyFeedback }) {
 function FluencySection({ fluency }: { fluency: FluencyFeedback }) {
 	const fillers = Object.entries(fluency.filler_words).sort(([, a], [, b]) => b - a);
 	const maxCount = fillers[0]?.[1] ?? 1;
+	const totalFillers = fillers.reduce((sum, [, count]) => sum + count, 0);
 
 	return (
 		<div className="space-y-5">
@@ -346,7 +347,10 @@ function FluencySection({ fluency }: { fluency: FluencyFeedback }) {
 
 			{fillers.length > 0 && (
 				<div>
-					<h3 className="mb-3 text-sm font-semibold">Filler Words</h3>
+					<div className="mb-3 flex items-center gap-2">
+						<h3 className="text-sm font-semibold">Filler Words</h3>
+						<Badge variant="secondary">{totalFillers} detected</Badge>
+					</div>
 					<Card>
 						<CardContent className="space-y-3">
 							{fillers.map(([word, count]) => (
@@ -384,6 +388,9 @@ function FluencySection({ fluency }: { fluency: FluencyFeedback }) {
 							<p className="mb-1 text-2xl">🔄</p>
 							<p className="text-2xl font-bold">{fluency.false_starts}</p>
 							<p className="mt-1 text-xs text-muted-foreground">False Starts</p>
+							<p className="mt-1 text-[10px] text-muted-foreground/60">
+								~5 is typical for a 30-min meeting
+							</p>
 						</CardContent>
 					</Card>
 					<Card>
@@ -391,6 +398,9 @@ function FluencySection({ fluency }: { fluency: FluencyFeedback }) {
 							<p className="mb-1 text-2xl">✂️</p>
 							<p className="text-2xl font-bold">{fluency.incomplete_sentences}</p>
 							<p className="mt-1 text-xs text-muted-foreground">Incomplete Sentences</p>
+							<p className="mt-1 text-[10px] text-muted-foreground/60">
+								~3 is typical for a 30-min meeting
+							</p>
 						</CardContent>
 					</Card>
 				</div>
