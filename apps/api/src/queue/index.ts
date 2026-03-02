@@ -91,10 +91,7 @@ export function startWorker() {
 				fluencyScore: analysis.fluency.score,
 			});
 
-			// Step 7: Delete transcription (privacy) and audio from R2
-			await db.delete(transcriptions).where(eq(transcriptions.sessionId, sessionId));
-			console.log("[worker] Transcription deleted (privacy)");
-
+			// Step 7: Delete audio from R2 (transcription kept in DB for debugging)
 			await deleteAudio(sessionId);
 			console.log("[worker] Audio deleted from R2");
 

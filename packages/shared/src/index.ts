@@ -7,7 +7,9 @@ export type CEFRLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 export interface User {
 	id: string;
 	email: string;
-	name: string | null;
+	firstName: string | null;
+	lastName: string | null;
+	avatarUrl: string | null;
 	subscriptionTier: SubscriptionTier;
 	createdAt: Date;
 }

@@ -1,6 +1,14 @@
 let banner: HTMLDivElement | null = null;
 let dismissTimer: ReturnType<typeof setTimeout> | null = null;
 
+function safeSendMessage(message: Record<string, string>) {
+	try {
+		chrome.runtime.sendMessage(message);
+	} catch {
+		// Extension context invalidated (extension was reloaded) — ignore
+	}
+}
+
 function showBanner() {
 	if (banner) return;
 
@@ -41,17 +49,21 @@ function hideBanner() {
 }
 
 // Notify service worker that we're on a Meet page
-chrome.runtime.sendMessage({ type: "MEET_PAGE_OPENED" });
+safeSendMessage({ type: "MEET_PAGE_OPENED" });
 showBanner();
 
 // Listen for recording start to hide banner
-chrome.runtime.onMessage.addListener((message) => {
-	if (message.type === "RECORDING_STARTED") {
-		hideBanner();
-	}
-});
+try {
+	chrome.runtime.onMessage.addListener((message) => {
+		if (message.type === "RECORDING_STARTED") {
+			hideBanner();
+		}
+	});
+} catch {
+	// Extension context invalidated — ignore
+}
 
 // Notify on page close
 window.addEventListener("beforeunload", () => {
-	chrome.runtime.sendMessage({ type: "MEET_PAGE_CLOSED" });
+	safeSendMessage({ type: "MEET_PAGE_CLOSED" });
 });

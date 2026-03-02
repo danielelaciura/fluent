@@ -4,7 +4,7 @@ import webExtension from "vite-plugin-web-extension";
 export default defineConfig({
 	plugins: [
 		webExtension({
-			additionalInputs: ["src/offscreen/offscreen.html"],
+			additionalInputs: ["src/offscreen/offscreen.html", "src/permissions/permissions.html"],
 		}),
 	],
 	build: {

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { db } from "../db/index.js";
 import { reports, sessions } from "../db/schema.js";
@@ -8,6 +8,32 @@ import { getUploadUrl, uploadAudio } from "../services/storage.js";
 export default async function sessionRoutes(fastify: FastifyInstance) {
 	// All routes require authentication
 	fastify.addHook("onRequest", fastify.authenticate);
+
+	// GET /sessions — list recent sessions with report data
+	fastify.get<{ Querystring: { limit?: string } }>("/sessions", async (request) => {
+		const limit = Math.min(Math.max(Number(request.query.limit) || 3, 1), 20);
+
+		const rows = await db
+			.select({
+				id: sessions.id,
+				status: sessions.status,
+				durationSeconds: sessions.durationSeconds,
+				createdAt: sessions.createdAt,
+				overallScore: reports.overallScore,
+				cefrLevel: reports.cefrLevel,
+				grammarScore: sql<number | null>`(${reports.grammarJson}->>'score')::integer`,
+				vocabularyScore: sql<number | null>`(${reports.vocabularyJson}->>'score')::integer`,
+				fluencyScore: sql<number | null>`(${reports.fluencyJson}->>'score')::integer`,
+				businessScore: sql<number | null>`(${reports.businessEnglishJson}->>'score')::integer`,
+			})
+			.from(sessions)
+			.leftJoin(reports, eq(sessions.id, reports.sessionId))
+			.where(eq(sessions.userId, request.user.userId))
+			.orderBy(desc(sessions.createdAt))
+			.limit(limit);
+
+		return rows;
+	});
 
 	// POST /sessions — create a new session
 	fastify.post("/sessions", async (request) => {

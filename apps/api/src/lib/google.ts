@@ -17,7 +17,9 @@ function getClient(): OAuth2Client {
 export interface GoogleUserInfo {
 	googleId: string;
 	email: string;
-	name: string | undefined;
+	firstName: string | undefined;
+	lastName: string | undefined;
+	avatarUrl: string | undefined;
 }
 
 export async function verifyGoogleToken(idToken: string): Promise<GoogleUserInfo> {
@@ -35,6 +37,8 @@ export async function verifyGoogleToken(idToken: string): Promise<GoogleUserInfo
 	return {
 		googleId: payload.sub,
 		email: payload.email,
-		name: payload.name,
+		firstName: payload.given_name,
+		lastName: payload.family_name,
+		avatarUrl: payload.picture,
 	};
 }

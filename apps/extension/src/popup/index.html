@@ -8,36 +8,86 @@
 	</head>
 	<body>
 		<div class="container">
-			<h1 class="title">MeetFluent</h1>
-			<p class="subtitle">AI English Coach</p>
+			<!-- Header (always visible) -->
+			<header class="header">
+				<div class="header-brand">
+					<div class="brand-logo">F</div>
+					<div class="brand-text">
+						<span class="brand-name">MeetFluent</span>
+						<span class="brand-tagline">AI English Coach</span>
+					</div>
+				</div>
+				<div id="header-user" class="header-user" hidden>
+					<span id="user-name" class="user-name"></span>
+					<button id="logout-btn" class="btn-text" type="button">Sign out</button>
+				</div>
+			</header>
 
-			<!-- Auth section (shown when logged out) -->
-			<div id="auth-section" class="auth-section" hidden>
-				<button id="login-btn" class="btn-login" type="button">Dev Login</button>
-			</div>
+			<!-- Loading (visible by default until state arrives) -->
+			<section id="section-loading" class="section">
+				<div class="spinner"></div>
+			</section>
 
-			<!-- User header (shown when logged in) -->
-			<div id="user-header" class="user-header" hidden>
-				<span id="user-name" class="user-name"></span>
-				<button id="logout-btn" class="btn-logout" type="button">Sign out</button>
-			</div>
+			<!-- Login -->
+			<section id="section-login" class="section" hidden>
+				<p class="section-message">Sign in to start analyzing your meetings</p>
+				<button id="login-btn" class="btn btn-primary" type="button">Sign in with Google</button>
+				<p id="login-error" class="inline-error" hidden></p>
+			</section>
 
-			<div id="meet-indicator" class="meet-indicator" hidden>On Google Meet</div>
+			<!-- Idle -->
+			<section id="section-idle" class="section" hidden>
+				<div id="mic-banner" class="mic-banner" hidden>
+					<span>Microphone not enabled</span>
+					<a id="mic-setup-link" href="#" class="mic-setup-link">Set up</a>
+				</div>
+				<div class="status-row">
+					<span id="meet-dot" class="dot dot-green" hidden></span>
+					<span class="status-label">Ready to record</span>
+				</div>
+				<button id="start-btn" class="btn btn-primary" type="button">Start Recording</button>
+				<p id="idle-error" class="inline-error" hidden></p>
+			</section>
 
-			<!-- Status area (changes per state) -->
-			<div id="status" class="status idle">Idle</div>
+			<!-- Recording -->
+			<section id="section-recording" class="section" hidden>
+				<div class="status-row">
+					<span class="dot dot-red dot-pulse"></span>
+					<span class="status-label">Recording</span>
+				</div>
+				<div id="timer" class="timer">00:00</div>
+				<button id="stop-btn" class="btn btn-danger" type="button">Stop Recording</button>
+			</section>
 
-			<!-- Error message -->
-			<div id="error-msg" class="error-msg" hidden></div>
+			<!-- Uploading -->
+			<section id="section-uploading" class="section" hidden>
+				<div class="spinner"></div>
+				<p class="section-message">Uploading audio...</p>
+			</section>
 
-			<!-- Report link -->
-			<a id="report-link" class="report-link" href="#" target="_blank" hidden>View report</a>
+			<!-- Processing -->
+			<section id="section-processing" class="section" hidden>
+				<div class="spinner"></div>
+				<p class="section-message">Analyzing your English...</p>
+				<p class="section-hint">This usually takes ~2-4 minutes</p>
+				<a id="report-link" class="btn btn-outline" href="#" target="_blank">View Report</a>
+				<button id="reset-btn-processing" class="btn-text" type="button">New recording</button>
+			</section>
 
-			<!-- Main action button -->
-			<button id="toggle-btn" class="btn idle" type="button" hidden>Start Recording</button>
+			<!-- Error -->
+			<section id="section-error" class="section" hidden>
+				<div class="error-card">
+					<span class="error-icon">!</span>
+					<p id="error-message" class="error-text"></p>
+				</div>
+				<button id="reset-btn-error" class="btn btn-outline" type="button">Try again</button>
+			</section>
 
-			<!-- Reset button (for processing/error states) -->
-			<button id="reset-btn" class="btn-reset" type="button" hidden>New recording</button>
+			<!-- Recent Sessions -->
+			<section id="section-sessions" class="section-sessions" hidden>
+				<h3 class="sessions-heading">Recent Sessions</h3>
+				<div id="sessions-list" class="sessions-list"></div>
+			</section>
 		</div>
 		<script type="module" src="./main.ts"></script>
 	</body>

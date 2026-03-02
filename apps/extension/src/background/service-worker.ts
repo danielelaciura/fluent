@@ -1,13 +1,15 @@
-import { createSession, uploadSession } from "../lib/api.js";
+import { createSession, listSessions, uploadSession } from "../lib/api.js";
 import * as auth from "../lib/auth.js";
 import {
 	type RecordingState,
 	getLastSessionId,
 	getMeetState,
+	getRecordingStartedAt,
 	getRecordingState,
 	getUploadError,
 	setLastSessionId,
 	setMeetState,
+	setRecordingStartedAt,
 	setRecordingState,
 	setUploadError,
 } from "../lib/state.js";
@@ -94,6 +96,7 @@ async function startRecording(): Promise<RecordingState> {
 	}
 
 	await setRecordingState("recording");
+	await setRecordingStartedAt(Date.now());
 	await setUploadError(null);
 
 	// Notify content script
@@ -110,8 +113,13 @@ async function stopRecording(): Promise<void> {
 
 async function uploadRecording(base64: string, mimeType: string, durationSeconds: number) {
 	try {
+		await setRecordingStartedAt(null);
 		await setRecordingState("uploading");
 		await updateBadge();
+
+		console.log(
+			`[sw] Uploading: base64 ${(base64.length / 1024).toFixed(1)} KB, ${durationSeconds}s, ${mimeType}`,
+		);
 
 		// Decode base64 to blob
 		const binaryString = atob(base64);
@@ -120,6 +128,7 @@ async function uploadRecording(base64: string, mimeType: string, durationSeconds
 			bytes[i] = binaryString.charCodeAt(i);
 		}
 		const blob = new Blob([bytes], { type: mimeType });
+		console.log(`[sw] Decoded blob: ${(blob.size / 1024).toFixed(1)} KB`);
 
 		// Create session and upload audio through API
 		const { sessionId } = await createSession();
@@ -151,7 +160,7 @@ async function handleMeetClosed() {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.type === "LOGIN") {
 		auth
-			.devLogin()
+			.login()
 			.then((user) => sendResponse({ ok: true, user }))
 			.catch((err: unknown) => {
 				const errorMessage = err instanceof Error ? err.message : "Login failed";
@@ -175,7 +184,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			const user = await auth.getUser();
 			const lastSessionId = await getLastSessionId();
 			const uploadError = await getUploadError();
-			sendResponse({ state, onMeetTab: meet.onMeetTab, user, lastSessionId, uploadError });
+			const recordingStartedAt = await getRecordingStartedAt();
+
+			let recentSessions: Awaited<ReturnType<typeof listSessions>> = [];
+			if (user) {
+				try {
+					recentSessions = await listSessions(3);
+				} catch {
+					// API unreachable — leave empty
+				}
+			}
+
+			sendResponse({
+				state,
+				onMeetTab: meet.onMeetTab,
+				user,
+				lastSessionId,
+				uploadError,
+				recordingStartedAt,
+				recentSessions,
+			});
 		})();
 		return true;
 	}

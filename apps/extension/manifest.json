@@ -14,7 +14,7 @@
 	"background": {
 		"service_worker": "src/background/service-worker.ts"
 	},
-	"permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture"],
+	"permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture", "identity"],
 	"content_scripts": [
 		{
 			"matches": ["https://meet.google.com/*"],

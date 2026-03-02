@@ -20,14 +20,18 @@ export default async function authRoutes(fastify: FastifyInstance) {
 			.insert(users)
 			.values({
 				email: googleUser.email,
-				name: googleUser.name,
+				firstName: googleUser.firstName,
+				lastName: googleUser.lastName,
+				avatarUrl: googleUser.avatarUrl,
 				googleId: googleUser.googleId,
 			})
 			.onConflictDoUpdate({
 				target: users.googleId,
 				set: {
 					email: googleUser.email,
-					name: googleUser.name,
+					firstName: googleUser.firstName,
+					lastName: googleUser.lastName,
+					avatarUrl: googleUser.avatarUrl,
 					updatedAt: new Date(),
 				},
 			})
@@ -35,7 +39,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
 		const token = signToken({ userId: user.id, email: user.email });
 
-		return { token, user: { id: user.id, email: user.email, name: user.name } };
+		return {
+			token,
+			user: {
+				id: user.id,
+				email: user.email,
+				firstName: user.firstName,
+				lastName: user.lastName,
+				avatarUrl: user.avatarUrl,
+			},
+		};
 	});
 
 	// Dev-only login — creates a test user without Google OAuth
@@ -49,7 +62,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
 			.insert(users)
 			.values({
 				email: "dev@meetfluent.local",
-				name: "Dev User",
+				firstName: "Dev",
+				lastName: "User",
 				googleId: "dev-local-testing",
 			})
 			.onConflictDoUpdate({
@@ -60,7 +74,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
 		const token = signToken({ userId: user.id, email: user.email });
 
-		return { token, user: { id: user.id, email: user.email, name: user.name } };
+		return {
+			token,
+			user: {
+				id: user.id,
+				email: user.email,
+				firstName: user.firstName,
+				lastName: user.lastName,
+				avatarUrl: user.avatarUrl,
+			},
+		};
 	});
 
 	fastify.get("/auth/me", { onRequest: [fastify.authenticate] }, async (request) => {
@@ -68,7 +91,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
 			.select({
 				id: users.id,
 				email: users.email,
-				name: users.name,
+				firstName: users.firstName,
+				lastName: users.lastName,
+				avatarUrl: users.avatarUrl,
 				subscriptionTier: users.subscriptionTier,
 				createdAt: users.createdAt,
 			})

@@ -1,4 +1,6 @@
 Leggi docs/PRD.md per il contesto completo del progetto.
+Leggi docs/FRONTEND_DEVELOPMENT_GUIDE.md per le istruzioni di sviluppo della piattaforma web e aggiorna CLAUDE.md se l'architettura dovesse cambiare
+
 
 ## Documentazione librerie
 Quando lavori con le librerie di questo progetto, usa SEMPRE Context7

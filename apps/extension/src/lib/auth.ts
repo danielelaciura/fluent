@@ -1,4 +1,4 @@
-const GOOGLE_CLIENT_ID = "__GOOGLE_CLIENT_ID__"; // Replace with real client ID
+const GOOGLE_CLIENT_ID = "166032143713-pab8ia25nb4ovsmens44al4ibj2j81bp.apps.googleusercontent.com";
 
 const STORAGE_KEYS = {
 	token: "authToken",
@@ -6,8 +6,11 @@ const STORAGE_KEYS = {
 } as const;
 
 export interface AuthUser {
-	name: string;
+	id: string;
 	email: string;
+	firstName: string | null;
+	lastName: string | null;
+	avatarUrl: string | null;
 }
 
 function buildAuthUrl(redirectUri: string): string {

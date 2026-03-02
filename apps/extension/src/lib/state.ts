@@ -9,6 +9,7 @@ const STORAGE_KEY = "recordingState";
 const MEET_STATE_KEY = "meetState";
 const SESSION_ID_KEY = "lastSessionId";
 const UPLOAD_ERROR_KEY = "uploadError";
+const RECORDING_STARTED_AT_KEY = "recordingStartedAt";
 
 export async function getRecordingState(): Promise<RecordingState> {
 	const result = await chrome.storage.local.get(STORAGE_KEY);
@@ -44,4 +45,13 @@ export async function getUploadError(): Promise<string | null> {
 
 export async function setUploadError(error: string | null): Promise<void> {
 	await chrome.storage.local.set({ [UPLOAD_ERROR_KEY]: error });
+}
+
+export async function getRecordingStartedAt(): Promise<number | null> {
+	const result = await chrome.storage.local.get(RECORDING_STARTED_AT_KEY);
+	return (result[RECORDING_STARTED_AT_KEY] as number) ?? null;
+}
+
+export async function setRecordingStartedAt(timestamp: number | null): Promise<void> {
+	await chrome.storage.local.set({ [RECORDING_STARTED_AT_KEY]: timestamp });
 }

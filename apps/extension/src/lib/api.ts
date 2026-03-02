@@ -28,6 +28,19 @@ export async function apiCall<T>(method: string, path: string, body?: unknown): 
 	return res.json() as Promise<T>;
 }
 
+export interface RecentSession {
+	id: string;
+	status: string;
+	durationSeconds: number | null;
+	createdAt: string;
+	overallScore: number | null;
+	cefrLevel: string | null;
+}
+
+export async function listSessions(limit = 3): Promise<RecentSession[]> {
+	return apiCall("GET", `/sessions?limit=${limit}`);
+}
+
 export async function createSession(): Promise<{ sessionId: string }> {
 	return apiCall("POST", "/sessions");
 }
