@@ -60,8 +60,8 @@ export default function Layout() {
 			<aside className="no-print sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r border-border bg-card">
 				{/* Logo */}
 				<div className="px-5 py-5">
-					<Link to="/" className="text-xl font-bold text-primary">
-						Zest
+					<Link to="/">
+						<img src="/zest-logo.png" alt="Zest" className="h-7 w-auto" />
 					</Link>
 				</div>
 
@@ -93,11 +93,11 @@ export default function Layout() {
 											}`}
 										>
 											<div className="min-w-0">
-												<p
+												<h5
 													className={`truncate text-xs font-medium ${s.name ? "" : "text-muted-foreground"}`}
 												>
 													{s.name || "Untitled"}
-												</p>
+												</h5>
 												<p className="truncate text-[10px] text-muted-foreground">
 													{formatShortDate(s.createdAt)}
 													{isComplete && s.overallScore !== null ? (

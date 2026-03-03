@@ -96,6 +96,12 @@
 	h6 {
 		font-family: var(--font-heading);
 	}
+
+	main {
+		background-color: #fbfff4;
+	}
+
+
 }
 
 @media print {

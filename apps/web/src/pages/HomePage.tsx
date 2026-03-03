@@ -128,7 +128,7 @@ export default function HomePage() {
 					</CardContent>
 				</Card>
 			) : (
-				<Card>
+				<Card className="p-5">
 					<Table>
 						<TableHeader>
 							<TableRow>
@@ -136,7 +136,7 @@ export default function HomePage() {
 								<TableHead>Date</TableHead>
 								<TableHead>Duration</TableHead>
 								<TableHead>Status</TableHead>
-								<TableHead className="text-center">CEFR</TableHead>
+								{/* <TableHead className="text-center">CEFR</TableHead> */}
 								<TableHead>Overall</TableHead>
 								<TableHead>Grammar</TableHead>
 								<TableHead>Vocab</TableHead>
@@ -154,6 +154,7 @@ export default function HomePage() {
 										onClick={() => navigate(`/sessions/${s.id}`)}
 									>
 										<TableCell className="py-3 font-medium">
+											<h5>
 											<EditableName
 												sessionId={s.id}
 												name={s.name}
@@ -165,6 +166,7 @@ export default function HomePage() {
 													refreshSidebar();
 												}}
 											/>
+											</h5>
 										</TableCell>
 										<TableCell className="py-3">{formatDate(s.createdAt)}</TableCell>
 										<TableCell className="py-3 text-muted-foreground">
@@ -173,7 +175,7 @@ export default function HomePage() {
 										<TableCell className="py-3">
 											<StatusBadge status={s.status} />
 										</TableCell>
-										<TableCell className="py-3 text-center">
+										{/* <TableCell className="py-3 text-center">
 											{isComplete && s.cefrLevel ? (
 												<span className="font-bold" style={{ color: cefrColor(s.cefrLevel) }}>
 													{s.cefrLevel}
@@ -181,7 +183,7 @@ export default function HomePage() {
 											) : (
 												<span className="text-muted-foreground">—</span>
 											)}
-										</TableCell>
+										</TableCell> */}
 										<TableCell className="py-3">
 											<ScoreBar score={isComplete ? s.overallScore : null} />
 										</TableCell>
