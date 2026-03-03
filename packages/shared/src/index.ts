@@ -17,6 +17,7 @@ export interface User {
 export interface Session {
 	id: string;
 	userId: string;
+	name: string | null;
 	durationSeconds: number | null;
 	audioUrl: string | null;
 	status: SessionStatus;

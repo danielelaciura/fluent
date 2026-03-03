@@ -209,8 +209,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 
 	if (message.type === "START_RECORDING") {
-		// Only handle from popup — offscreen document also receives this,
-		// but it checks for streamId which popup messages don't have
+		// Only handle from side panel — offscreen document also receives this,
+		// but it checks for streamId which side panel messages don't have
 		if (!message.streamId) {
 			startRecording()
 				.then((state) => sendResponse({ state }))
@@ -224,7 +224,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 
 	if (message.type === "STOP_RECORDING") {
-		// Only handle from popup (no base64 field)
+		// Only handle from side panel (no base64 field)
 		if (!message.base64) {
 			stopRecording()
 				.then(() => sendResponse({ ok: true }))
@@ -283,6 +283,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 		await handleMeetClosed();
 	}
 });
+
+// Open side panel when extension icon is clicked
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
 // Restore badge on service worker startup
 updateBadge();

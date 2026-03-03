@@ -1,20 +1,22 @@
 {
 	"manifest_version": 3,
-	"name": "MeetFluent",
+	"name": "Zest - English AI coach",
 	"description": "AI-powered English coaching for Google Meet calls",
 	"version": "0.1.0",
 	"action": {
-		"default_popup": "src/popup/index.html",
 		"default_icon": {
 			"16": "src/assets/icon-16.png",
 			"48": "src/assets/icon-48.png",
 			"128": "src/assets/icon-128.png"
 		}
 	},
+	"side_panel": {
+		"default_path": "src/side-panel/index.html"
+	},
 	"background": {
 		"service_worker": "src/background/service-worker.ts"
 	},
-	"permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture", "identity"],
+	"permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture", "identity", "sidePanel"],
 	"content_scripts": [
 		{
 			"matches": ["https://meet.google.com/*"],

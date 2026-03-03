@@ -1,6 +1,8 @@
 import { Loader2, Printer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
+import EditableName from "../components/EditableName";
+import { useLayoutContext } from "../components/Layout";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -64,6 +66,7 @@ interface Report {
 }
 
 interface Session {
+	name: string | null;
 	status: string;
 	durationSeconds: number | null;
 	errorMessage: string | null;
@@ -207,7 +210,7 @@ function HighlightsStrip({
 							<span className="text-lg">{c.emoji}</span>
 							<div className="min-w-0 flex-1">
 								<div className="mb-1 flex items-center gap-2">
-									<p className="text-sm font-semibold">{c.title}</p>
+									<h3>{c.title}</h3>
 									<span
 										className="inline-block size-2 rounded-full"
 										style={{ backgroundColor: scoreColor(c.score) }}
@@ -537,6 +540,7 @@ type TabId = (typeof TAB_ITEMS)[number]["id"];
 
 export default function ReportPage() {
 	const { id } = useParams<{ id: string }>();
+	const { refreshSessions: refreshSidebar } = useLayoutContext();
 	const [session, setSession] = useState<Session | null>(null);
 	const [report, setReport] = useState<Report | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -578,6 +582,7 @@ export default function ReportPage() {
 	if (isLoading) return <ReportSkeleton />;
 
 	const sessionDate = session?.createdAt ? formatDate(session.createdAt) : "—";
+	const sessionLabel = session?.name || sessionDate;
 
 	// Processing / error state
 	if (!report) {
@@ -589,7 +594,7 @@ export default function ReportPage() {
 						Sessions
 					</Link>
 					{" › "}
-					{sessionDate}
+					{sessionLabel}
 				</p>
 				<Card>
 					<CardContent className="py-10 text-center">
@@ -630,7 +635,18 @@ export default function ReportPage() {
 								Sessions
 							</Link>
 							{" › "}
-							{sessionDate} · {formatDuration(session?.durationSeconds ?? null)}
+							{id && (
+								<EditableName
+									sessionId={id}
+									name={session?.name ?? null}
+									className="text-sm text-foreground"
+									onSaved={(name) => {
+										setSession((prev) => (prev ? { ...prev, name } : prev));
+										refreshSidebar();
+									}}
+								/>
+							)}
+							<span> · {sessionDate} · {formatDuration(session?.durationSeconds ?? null)}</span>
 						</p>
 						<Button variant="outline" size="sm" onClick={() => window.print()}>
 							<Printer className="mr-1.5 size-4" />

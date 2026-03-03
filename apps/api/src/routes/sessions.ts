@@ -16,6 +16,7 @@ export default async function sessionRoutes(fastify: FastifyInstance) {
 		const rows = await db
 			.select({
 				id: sessions.id,
+				name: sessions.name,
 				status: sessions.status,
 				durationSeconds: sessions.durationSeconds,
 				createdAt: sessions.createdAt,
@@ -81,6 +82,7 @@ export default async function sessionRoutes(fastify: FastifyInstance) {
 		const [session] = await db
 			.select({
 				id: sessions.id,
+				name: sessions.name,
 				status: sessions.status,
 				durationSeconds: sessions.durationSeconds,
 				errorMessage: sessions.errorMessage,
@@ -96,6 +98,35 @@ export default async function sessionRoutes(fastify: FastifyInstance) {
 
 		return session;
 	});
+
+	// PATCH /sessions/:id — update session (e.g. rename)
+	fastify.patch<{ Params: { id: string }; Body: { name: string } }>(
+		"/sessions/:id",
+		async (request, reply) => {
+			const { id } = request.params;
+			const { name } = request.body || {};
+
+			if (typeof name !== "string") {
+				reply.code(400).send({ error: "name is required" });
+				return;
+			}
+
+			const trimmed = name.trim().slice(0, 255) || null;
+
+			const [updated] = await db
+				.update(sessions)
+				.set({ name: trimmed, updatedAt: new Date() })
+				.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)))
+				.returning({ id: sessions.id, name: sessions.name });
+
+			if (!updated) {
+				reply.code(404).send({ error: "Session not found" });
+				return;
+			}
+
+			return updated;
+		},
+	);
 
 	// GET /sessions/:id/report — get the analysis report
 	fastify.get<{ Params: { id: string } }>("/sessions/:id/report", async (request, reply) => {

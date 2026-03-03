@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import EditableName from "../components/EditableName";
+import { useLayoutContext } from "../components/Layout";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
@@ -16,6 +18,7 @@ import { cefrColor, formatDate, formatDuration, scoreColor } from "../lib/format
 
 interface SessionSummary {
 	id: string;
+	name: string | null;
 	status: string;
 	durationSeconds: number | null;
 	createdAt: string;
@@ -72,6 +75,7 @@ function ScoreBar({ score }: { score: number | null }) {
 
 export default function HomePage() {
 	const navigate = useNavigate();
+	const { refreshSessions: refreshSidebar } = useLayoutContext();
 	const [sessions, setSessions] = useState<SessionSummary[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -118,8 +122,8 @@ export default function HomePage() {
 					<CardContent className="py-6 text-center">
 						<p className="mb-2 text-lg font-medium">No sessions yet</p>
 						<p className="text-sm text-muted-foreground">
-							Record your first meeting to get started! Install the MeetFluent browser extension
-							and start a call.
+							Record your first meeting to get started! Install the MeetFluent browser extension and
+							start a call.
 						</p>
 					</CardContent>
 				</Card>
@@ -128,6 +132,7 @@ export default function HomePage() {
 					<Table>
 						<TableHeader>
 							<TableRow>
+								<TableHead>Name</TableHead>
 								<TableHead>Date</TableHead>
 								<TableHead>Duration</TableHead>
 								<TableHead>Status</TableHead>
@@ -149,8 +154,19 @@ export default function HomePage() {
 										onClick={() => navigate(`/sessions/${s.id}`)}
 									>
 										<TableCell className="py-3 font-medium">
-											{formatDate(s.createdAt)}
+											<EditableName
+												sessionId={s.id}
+												name={s.name}
+												className="text-sm"
+												onSaved={(name) => {
+													setSessions((prev) =>
+														prev.map((ss) => (ss.id === s.id ? { ...ss, name } : ss)),
+													);
+													refreshSidebar();
+												}}
+											/>
 										</TableCell>
+										<TableCell className="py-3">{formatDate(s.createdAt)}</TableCell>
 										<TableCell className="py-3 text-muted-foreground">
 											{formatDuration(s.durationSeconds)}
 										</TableCell>
@@ -159,10 +175,7 @@ export default function HomePage() {
 										</TableCell>
 										<TableCell className="py-3 text-center">
 											{isComplete && s.cefrLevel ? (
-												<span
-													className="font-bold"
-													style={{ color: cefrColor(s.cefrLevel) }}
-												>
+												<span className="font-bold" style={{ color: cefrColor(s.cefrLevel) }}>
 													{s.cefrLevel}
 												</span>
 											) : (

@@ -43,6 +43,7 @@ export const sessions = pgTable("sessions", {
 	userId: uuid("user_id")
 		.notNull()
 		.references(() => users.id),
+	name: varchar("name", { length: 255 }),
 	durationSeconds: integer("duration_seconds"),
 	audioUrl: varchar("audio_url", { length: 1024 }),
 	status: sessionStatusEnum("status").default("created").notNull(),
