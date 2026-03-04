@@ -13,8 +13,11 @@ import { fetchApi } from "../lib/api";
 import { formatDate } from "../lib/format";
 
 interface FullUser {
-	subscriptionTier: "free" | "pro" | "team";
 	createdAt: string;
+}
+
+interface SubscriptionInfo {
+	plan: { id: string; name: string };
 }
 
 const TIER_VARIANT: Record<string, { className: string }> = {
@@ -31,11 +34,16 @@ export default function ProfilePage() {
 	const [lastName, setLastName] = useState(user?.lastName ?? "");
 	const [isSaving, setIsSaving] = useState(false);
 	const [fullUser, setFullUser] = useState<FullUser | null>(null);
+	const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
 
 	useEffect(() => {
 		fetchApi("/auth/me")
 			.then((r) => r.json())
 			.then((u) => setFullUser(u as FullUser))
+			.catch(() => {});
+		fetchApi("/users/me/subscription")
+			.then((r) => r.json())
+			.then((s) => setSubscription(s as SubscriptionInfo))
 			.catch(() => {});
 	}, []);
 
@@ -85,9 +93,7 @@ export default function ProfilePage() {
 					{/* Avatar */}
 					<div className="flex flex-col items-center gap-2">
 						<Avatar className="size-20 text-2xl">
-							{user?.avatarUrl ? (
-								<AvatarImage src={user.avatarUrl} alt="avatar" />
-							) : null}
+							{user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="avatar" /> : null}
 							<AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
 								{initials}
 							</AvatarFallback>
@@ -145,11 +151,13 @@ export default function ProfilePage() {
 										<Badge
 											variant="secondary"
 											className={
-												TIER_VARIANT[fullUser.subscriptionTier]?.className ??
-												TIER_VARIANT.free.className
+												subscription
+													? (TIER_VARIANT[subscription.plan.id]?.className ??
+														TIER_VARIANT.free.className)
+													: TIER_VARIANT.free.className
 											}
 										>
-											{fullUser.subscriptionTier}
+											{subscription?.plan.name ?? "Free"}
 										</Badge>
 									</div>
 								</div>

@@ -1,4 +1,5 @@
 import {
+	boolean,
 	date,
 	integer,
 	jsonb,
@@ -11,8 +12,6 @@ import {
 	varchar,
 } from "drizzle-orm/pg-core";
 
-export const subscriptionTierEnum = pgEnum("subscription_tier", ["free", "pro", "team"]);
-
 export const sessionStatusEnum = pgEnum("session_status", [
 	"created",
 	"uploading",
@@ -24,6 +23,14 @@ export const sessionStatusEnum = pgEnum("session_status", [
 
 export const cefrLevelEnum = pgEnum("cefr_level", ["A1", "A2", "B1", "B2", "C1", "C2"]);
 
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+	"active",
+	"canceled",
+	"past_due",
+]);
+
+export const periodTypeEnum = pgEnum("period_type", ["weekly", "monthly"]);
+
 // ─── Users ───────────────────────────────────────────────
 export const users = pgTable("users", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -32,7 +39,38 @@ export const users = pgTable("users", {
 	lastName: varchar("last_name", { length: 255 }),
 	avatarUrl: varchar("avatar_url", { length: 1024 }),
 	googleId: varchar("google_id", { length: 255 }).notNull().unique(),
-	subscriptionTier: subscriptionTierEnum("subscription_tier").default("free").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }),
+});
+
+// ─── Plans ──────────────────────────────────────────────
+export const plans = pgTable("plans", {
+	id: varchar("id", { length: 50 }).primaryKey(),
+	name: varchar("name", { length: 100 }).notNull(),
+	maxSecondsPerPeriod: integer("max_seconds_per_period").notNull(),
+	periodType: periodTypeEnum("period_type").notNull(),
+	analysisProvider: varchar("analysis_provider", { length: 50 }).notNull(),
+	sttProvider: varchar("stt_provider", { length: 50 }).notNull(),
+	priceCents: integer("price_cents").notNull(),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ─── Subscriptions ──────────────────────────────────────
+export const subscriptions = pgTable("subscriptions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	userId: uuid("user_id")
+		.notNull()
+		.unique()
+		.references(() => users.id),
+	planId: varchar("plan_id", { length: 50 })
+		.notNull()
+		.references(() => plans.id),
+	status: subscriptionStatusEnum("status").default("active").notNull(),
+	stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+	stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+	currentPeriodStart: timestamp("current_period_start", { withTimezone: true }).notNull(),
+	currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
@@ -51,6 +89,19 @@ export const sessions = pgTable("sessions", {
 	errorMessage: varchar("error_message", { length: 1024 }),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }),
+});
+
+// ─── Usage Records ──────────────────────────────────────
+export const usageRecords = pgTable("usage_records", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	userId: uuid("user_id")
+		.notNull()
+		.references(() => users.id),
+	sessionId: uuid("session_id")
+		.notNull()
+		.references(() => sessions.id),
+	durationSeconds: integer("duration_seconds").notNull(),
+	recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // ─── Transcriptions ──────────────────────────────────────

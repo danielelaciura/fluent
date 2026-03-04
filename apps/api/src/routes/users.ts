@@ -37,7 +37,6 @@ export default async function userRoutes(fastify: FastifyInstance) {
 				firstName: users.firstName,
 				lastName: users.lastName,
 				avatarUrl: users.avatarUrl,
-				subscriptionTier: users.subscriptionTier,
 				createdAt: users.createdAt,
 			});
 

@@ -1,6 +1,16 @@
-export type SubscriptionTier = "free" | "pro" | "team";
+export type PlanId = "free" | "pro" | "team";
 
-export type SessionStatus = "created" | "uploading" | "processing" | "transcribed" | "complete" | "error";
+export type PeriodType = "weekly" | "monthly";
+
+export type SubscriptionStatus = "active" | "canceled" | "past_due";
+
+export type SessionStatus =
+	| "created"
+	| "uploading"
+	| "processing"
+	| "transcribed"
+	| "complete"
+	| "error";
 
 export type CEFRLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
@@ -10,8 +20,44 @@ export interface User {
 	firstName: string | null;
 	lastName: string | null;
 	avatarUrl: string | null;
-	subscriptionTier: SubscriptionTier;
 	createdAt: Date;
+}
+
+export interface Plan {
+	id: string;
+	name: string;
+	maxSecondsPerPeriod: number;
+	periodType: PeriodType;
+	priceCents: number;
+	isActive: boolean;
+}
+
+export interface Subscription {
+	id: string;
+	userId: string;
+	plan: Plan;
+	status: SubscriptionStatus;
+	stripeSubscriptionId: string | null;
+	stripeCustomerId: string | null;
+	currentPeriodStart: Date;
+	currentPeriodEnd: Date;
+}
+
+export interface UsageInfo {
+	plan: {
+		id: string;
+		name: string;
+		maxSeconds: number;
+		periodType: PeriodType;
+	};
+	currentPeriod: {
+		start: Date;
+		end: Date;
+	};
+	usedSeconds: number;
+	remainingSeconds: number;
+	isLimitReached: boolean;
+	percentUsed: number;
 }
 
 export interface Session {

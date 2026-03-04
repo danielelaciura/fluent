@@ -10,6 +10,7 @@ import {
 	downloadChunk,
 } from "../services/storage.js";
 import { type TranscriptionResult, transcribeAudio } from "../services/transcription.js";
+import { recordUsage } from "../services/usage.js";
 import { redisConnection } from "./redis.js";
 
 export interface SessionJobData {
@@ -53,15 +54,11 @@ export function startWorker() {
 				for (let i = 0; i < session.totalChunks; i++) {
 					console.log(`[worker] Downloading chunk ${i}`);
 					const chunkBuffer = await downloadChunk(sessionId, i);
-					console.log(
-						`[worker] Chunk ${i}: ${(chunkBuffer.length / 1024).toFixed(1)} KB`,
-					);
+					console.log(`[worker] Chunk ${i}: ${(chunkBuffer.length / 1024).toFixed(1)} KB`);
 
 					console.log(`[worker] Transcribing chunk ${i}`);
 					const chunkResult = await transcribeAudio(chunkBuffer);
-					console.log(
-						`[worker] Chunk ${i}: ${chunkResult.words.length} words`,
-					);
+					console.log(`[worker] Chunk ${i}: ${chunkResult.words.length} words`);
 					chunkTranscriptions.push(chunkResult);
 				}
 
@@ -97,9 +94,7 @@ export function startWorker() {
 				// ─── Legacy single-file flow ─────────────────────
 				console.log("[worker] Legacy single-file session");
 				const audioBuffer = await downloadAudio(sessionId);
-				console.log(
-					`[worker] Downloaded ${(audioBuffer.length / 1024).toFixed(1)} KB`,
-				);
+				console.log(`[worker] Downloaded ${(audioBuffer.length / 1024).toFixed(1)} KB`);
 
 				transcription = await transcribeAudio(audioBuffer);
 
@@ -151,6 +146,29 @@ export function startWorker() {
 				vocabularyScore: analysis.vocabulary.score,
 				fluencyScore: analysis.fluency.score,
 			});
+
+			// Record usage for quota tracking
+			const [currentSession] = await db
+				.select({ durationSeconds: sessions.durationSeconds })
+				.from(sessions)
+				.where(eq(sessions.id, sessionId));
+
+			let durationSeconds = currentSession?.durationSeconds;
+			if (!durationSeconds && transcription.words.length > 0) {
+				// Derive duration from transcription timestamps
+				durationSeconds = Math.ceil(
+					transcription.words[transcription.words.length - 1].end - transcription.words[0].start,
+				);
+				await db
+					.update(sessions)
+					.set({ durationSeconds, updatedAt: new Date() })
+					.where(eq(sessions.id, sessionId));
+			}
+
+			if (durationSeconds && durationSeconds > 0) {
+				await recordUsage(session.userId, sessionId, durationSeconds);
+				console.log(`[worker] Recorded ${durationSeconds}s usage for user ${session.userId}`);
+			}
 
 			// Mark complete
 			await db

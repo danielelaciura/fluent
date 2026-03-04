@@ -6,6 +6,7 @@ import authenticate from "./plugins/authenticate.js";
 import { startWorker } from "./queue/index.js";
 import authRoutes from "./routes/auth.js";
 import sessionRoutes from "./routes/sessions.js";
+import subscriptionRoutes from "./routes/subscriptions.js";
 import userRoutes from "./routes/users.js";
 
 const server = Fastify({
@@ -16,6 +17,7 @@ server.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } }); // 200 
 server.register(authenticate);
 server.register(authRoutes);
 server.register(sessionRoutes);
+server.register(subscriptionRoutes);
 server.register(userRoutes);
 
 server.get("/health", async (_request, reply) => {

@@ -100,11 +100,13 @@ The transcription is analyzed by Claude API with a structured prompt that evalua
 
 | Tier | Includes | Price |
 |------|----------|-------|
-| Free | 3 analyzed sessions/month, basic grammar report | €0 |
-| Pro | Unlimited sessions, full report, progress tracking, pronunciation (when available) | €14.99/month |
+| Free | Up to 2 hours of analyzed conversation per week (rolling 7 days), basic grammar + fluency report | €0 |
+| Pro | Up to 50 hours/month, premium AI analysis, full report with all categories, progress tracking | €14.99/month |
 | Team | Pro features + admin dashboard, team analytics, priority support | €12.99/user/month (min 5 seats) |
 
 Unit economics at Pro tier: estimated COGS of €0.25–0.30 per session. At 8 sessions/month average, COGS is ~€2.20, yielding ~85% gross margin.
+
+Usage limits are enforced via a rolling time window (Free: 7-day rolling, Pro: calendar month tied to subscription period). When a user reaches their limit, the Record button in the Chrome extension is disabled until quota resets. All thresholds are stored in the `plans` database table and configurable via an admin endpoint.
 
 ### 9. Risks & Mitigations
 
@@ -212,11 +214,14 @@ Key views:
 
 | Table | Key Fields | Notes |
 |-------|-----------|-------|
-| `users` | id, email, name, created_at, subscription_tier | Google OAuth profile |
+| `users` | id, email, name, created_at | Google OAuth profile |
 | `sessions` | id, user_id, duration_sec, audio_url, status, created_at | Status: uploading → processing → complete → error |
 | `transcriptions` | id, session_id, text, words_json (timestamps + confidence) | Deleted after report generation (privacy) |
 | `reports` | id, session_id, overall_score, cefr_level, grammar_json, vocabulary_json, fluency_json, tips_json | Structured JSON for each analysis category |
 | `user_progress` | id, user_id, date, avg_score, common_errors_json | Daily aggregation for dashboard charts |
+| `plans` | id, name, max_seconds_per_period, period_type, analysis_provider, stt_provider, price_cents, is_active | Plan configuration (free, pro, team) |
+| `subscriptions` | id, user_id, plan_id, status, stripe_subscription_id, stripe_customer_id, current_period_start, current_period_end | One active subscription per user; links user to plan |
+| `usage_records` | id, user_id, session_id, duration_seconds, recorded_at | Logs each session's duration for quota calculation |
 
 **Privacy policy:** Raw audio files are deleted from S3/R2 within 24 hours of processing. Transcriptions are deleted after report generation. Only the structured report and aggregated progress data are retained long-term.
 

@@ -1,9 +1,27 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { db } from "../db/index.js";
-import { users } from "../db/schema.js";
+import { subscriptions, users } from "../db/schema.js";
 import { verifyGoogleToken } from "../lib/google.js";
 import { signToken } from "../lib/jwt.js";
+
+async function ensureSubscription(userId: string) {
+	const [existing] = await db
+		.select({ id: subscriptions.id })
+		.from(subscriptions)
+		.where(eq(subscriptions.userId, userId));
+
+	if (!existing) {
+		const now = new Date();
+		await db.insert(subscriptions).values({
+			userId,
+			planId: "free",
+			status: "active",
+			currentPeriodStart: now,
+			currentPeriodEnd: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+		});
+	}
+}
 
 export default async function authRoutes(fastify: FastifyInstance) {
 	fastify.post<{ Body: { idToken: string } }>("/auth/google", async (request, reply) => {
@@ -37,6 +55,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 			})
 			.returning();
 
+		await ensureSubscription(user.id);
 		const token = signToken({ userId: user.id, email: user.email });
 
 		return {
@@ -72,6 +91,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 			})
 			.returning();
 
+		await ensureSubscription(user.id);
 		const token = signToken({ userId: user.id, email: user.email });
 
 		return {
@@ -94,7 +114,6 @@ export default async function authRoutes(fastify: FastifyInstance) {
 				firstName: users.firstName,
 				lastName: users.lastName,
 				avatarUrl: users.avatarUrl,
-				subscriptionTier: users.subscriptionTier,
 				createdAt: users.createdAt,
 			})
 			.from(users)
