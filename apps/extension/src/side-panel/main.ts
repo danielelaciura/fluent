@@ -1,4 +1,4 @@
-import { getSession, type RecentSession } from "../lib/api.js";
+import { type RecentSession, getSession } from "../lib/api.js";
 import type { AuthUser } from "../lib/auth.js";
 import type { RecordingState } from "../lib/state.js";
 
@@ -155,8 +155,8 @@ function renderSessions(sessions: RecentSession[]) {
 			durEl.className = "session-duration";
 			durEl.textContent = formatDuration(s.durationSeconds);
 			left.appendChild(durEl);
-			
-			const link = document.createElement("div") ;
+
+			const link = document.createElement("div");
 			link.className = "link";
 			link.textContent = card.href;
 			left.appendChild(link);

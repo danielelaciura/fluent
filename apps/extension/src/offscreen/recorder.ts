@@ -82,9 +82,7 @@ function startNewChunkRecorder() {
 		// Each stop produces a complete, self-contained WebM file
 		const blob = new Blob(chunks, { type: "audio/webm;codecs=opus" });
 		const currentIndex = chunkIndex++;
-		console.log(
-			`[recorder] Chunk ${currentIndex}: ${(blob.size / 1024).toFixed(1)} KB`,
-		);
+		console.log(`[recorder] Chunk ${currentIndex}: ${(blob.size / 1024).toFixed(1)} KB`);
 
 		const chunkPromise = blobToBase64(blob).then((base64) => {
 			chrome.runtime.sendMessage({
@@ -124,9 +122,7 @@ async function finishRecording() {
 	await Promise.all(pendingChunks);
 	pendingChunks = [];
 
-	console.log(
-		`[recorder] Stopped: ${totalChunks} chunks, ${durationSeconds}s`,
-	);
+	console.log(`[recorder] Stopped: ${totalChunks} chunks, ${durationSeconds}s`);
 
 	chrome.runtime.sendMessage({
 		type: "RECORDING_STOPPED",

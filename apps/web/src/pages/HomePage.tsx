@@ -155,17 +155,17 @@ export default function HomePage() {
 									>
 										<TableCell className="py-5 font-medium">
 											<h5>
-											<EditableName
-												sessionId={s.id}
-												name={s.name}
-												className="text-sm"
-												onSaved={(name) => {
-													setSessions((prev) =>
-														prev.map((ss) => (ss.id === s.id ? { ...ss, name } : ss)),
-													);
-													refreshSidebar();
-												}}
-											/>
+												<EditableName
+													sessionId={s.id}
+													name={s.name}
+													className="text-sm"
+													onSaved={(name) => {
+														setSessions((prev) =>
+															prev.map((ss) => (ss.id === s.id ? { ...ss, name } : ss)),
+														);
+														refreshSidebar();
+													}}
+												/>
 											</h5>
 										</TableCell>
 										<TableCell className="py-3">{formatDate(s.createdAt)}</TableCell>

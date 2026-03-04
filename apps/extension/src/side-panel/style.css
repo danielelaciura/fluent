@@ -21,15 +21,17 @@
 	box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
 	height: 100%;
 }
 
 body {
 	width: 100%;
 	overflow-y: auto;
-	font-family: "Nunito Sans Variable", "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
- 	background: var(--bg); 
+	font-family: "Nunito Sans Variable", "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+		Roboto, sans-serif;
+	background: var(--bg);
 	color: var(--text);
 	font-size: 1322px;
 	background: --bg;
@@ -357,7 +359,8 @@ body {
 	color: var(--text);
 }
 
-.session-duration, .link {
+.session-duration,
+.link {
 	font-size: 11px;
 	color: var(--text-muted);
 }

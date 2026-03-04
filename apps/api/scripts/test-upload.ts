@@ -184,7 +184,10 @@ async function run() {
 			console.log(`   Fluency summary: "${fluency.summary}"`);
 			tips.forEach((tip, i) => console.log(`   Tip ${i + 1}: "${tip}"`));
 
-			assert("report has valid CEFR level", ["A1", "A2", "B1", "B2", "C1", "C2"].includes(report.cefrLevel));
+			assert(
+				"report has valid CEFR level",
+				["A1", "A2", "B1", "B2", "C1", "C2"].includes(report.cefrLevel),
+			);
 			assert("report has scores", report.overallScore >= 0 && report.overallScore <= 100);
 			assert("report has tips", tips.length >= 1);
 

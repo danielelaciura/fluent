@@ -4,10 +4,7 @@ import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const SYSTEM_PROMPT = readFileSync(
-	join(__dirname, "analysis-prompt.md"),
-	"utf-8",
-);
+const SYSTEM_PROMPT = readFileSync(join(__dirname, "analysis-prompt.md"), "utf-8");
 
 let anthropic: Anthropic | null = null;
 
@@ -21,7 +18,6 @@ function getClient(): Anthropic {
 	}
 	return anthropic;
 }
-
 
 export interface GrammarError {
 	original: string;

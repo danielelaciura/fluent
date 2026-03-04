@@ -76,9 +76,7 @@ interface Session {
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 function SummaryBox({ text }: { text: string }) {
-	return (
-		<div className="rounded-lg bg-muted p-4 text-sm leading-relaxed">{text}</div>
-	);
+	return <div className="rounded-lg bg-muted p-4 text-sm leading-relaxed">{text}</div>;
 }
 
 function ScoreCircle({ score, size = "lg" }: { score: number; size?: "sm" | "lg" }) {
@@ -142,7 +140,14 @@ function HighlightsStrip({
 	const fillerTotal = Object.values(report.fluency.filler_words).reduce((a, b) => a + b, 0);
 	const topFiller = Object.entries(report.fluency.filler_words).sort(([, a], [, b]) => b - a)[0];
 
-	const cards: { tab: TabId; emoji: string; title: string; line1: string; line2: string; score: number }[] = [
+	const cards: {
+		tab: TabId;
+		emoji: string;
+		title: string;
+		line1: string;
+		line2: string;
+		score: number;
+	}[] = [
 		{
 			tab: "grammar",
 			emoji: "📝",
@@ -165,9 +170,10 @@ function HighlightsStrip({
 				report.vocabulary.overused_words.length === 0
 					? "Excellent range"
 					: `"${report.vocabulary.overused_words[0].word}" overused (${report.vocabulary.overused_words[0].count}×)`,
-			line2: report.vocabulary.overused_words.length > 0
-				? `${report.vocabulary.overused_words.length} word${report.vocabulary.overused_words.length !== 1 ? "s" : ""} to improve`
-				: "Good variety",
+			line2:
+				report.vocabulary.overused_words.length > 0
+					? `${report.vocabulary.overused_words.length} word${report.vocabulary.overused_words.length !== 1 ? "s" : ""} to improve`
+					: "Good variety",
 			score: report.vocabulary.score,
 		},
 		{
@@ -257,9 +263,7 @@ function GrammarSection({ grammar }: { grammar: GrammarFeedback }) {
 									</Badge>
 									<p className="text-sm text-destructive line-through">{err.original}</p>
 									<p className="text-sm font-medium text-green-600">{err.corrected}</p>
-									<p className="text-xs leading-relaxed text-muted-foreground">
-										{err.explanation}
-									</p>
+									<p className="text-xs leading-relaxed text-muted-foreground">{err.explanation}</p>
 								</CardContent>
 							</Card>
 						))}
@@ -271,9 +275,10 @@ function GrammarSection({ grammar }: { grammar: GrammarFeedback }) {
 }
 
 function VocabularySection({ vocabulary }: { vocabulary: VocabularyFeedback }) {
-	const maxCount = vocabulary.overused_words.length > 0
-		? Math.max(...vocabulary.overused_words.map((w) => w.count))
-		: 1;
+	const maxCount =
+		vocabulary.overused_words.length > 0
+			? Math.max(...vocabulary.overused_words.map((w) => w.count))
+			: 1;
 
 	return (
 		<div className="space-y-5">
@@ -292,9 +297,7 @@ function VocabularySection({ vocabulary }: { vocabulary: VocabularyFeedback }) {
 							<Card key={i}>
 								<CardContent>
 									<div className="mb-2 flex items-center gap-3">
-										<span className="text-sm font-semibold">
-											&ldquo;{w.word}&rdquo;
-										</span>
+										<span className="text-sm font-semibold">&ldquo;{w.word}&rdquo;</span>
 										<div className="h-1.5 flex-1 rounded-full bg-muted">
 											<div
 												className="h-1.5 rounded-full"
@@ -304,9 +307,7 @@ function VocabularySection({ vocabulary }: { vocabulary: VocabularyFeedback }) {
 												}}
 											/>
 										</div>
-										<span className="shrink-0 text-xs text-muted-foreground">
-											{w.count}×
-										</span>
+										<span className="shrink-0 text-xs text-muted-foreground">{w.count}×</span>
 									</div>
 									<p className="mb-2 text-xs text-muted-foreground">Try instead:</p>
 									<div className="flex flex-wrap gap-1.5">
@@ -358,9 +359,7 @@ function FluencySection({ fluency }: { fluency: FluencyFeedback }) {
 						<CardContent className="space-y-3">
 							{fillers.map(([word, count]) => (
 								<div key={word} className="flex items-center gap-3">
-									<span className="w-20 shrink-0 text-sm font-medium">
-										&ldquo;{word}&rdquo;
-									</span>
+									<span className="w-20 shrink-0 text-sm font-medium">&ldquo;{word}&rdquo;</span>
 									<div className="h-2 flex-1 rounded-full bg-muted">
 										<div
 											className="h-2 rounded-full transition-all"
@@ -464,9 +463,7 @@ function TipsSection({ tips }: { tips: string[] }) {
 				{tips.map((tip, i) => (
 					<Card key={tip} className="border-l-4 border-l-primary">
 						<CardContent className="flex gap-4">
-							<span className="mt-0.5 text-2xl font-bold leading-none text-primary">
-								{i + 1}
-							</span>
+							<span className="mt-0.5 text-2xl font-bold leading-none text-primary">{i + 1}</span>
 							<p className="text-sm leading-relaxed">{tip}</p>
 						</CardContent>
 					</Card>
@@ -646,7 +643,10 @@ export default function ReportPage() {
 									}}
 								/>
 							)}
-							<span> · {sessionDate} · {formatDuration(session?.durationSeconds ?? null)}</span>
+							<span>
+								{" "}
+								· {sessionDate} · {formatDuration(session?.durationSeconds ?? null)}
+							</span>
 						</p>
 						<Button variant="outline" size="sm" onClick={() => window.print()}>
 							<Printer className="mr-1.5 size-4" />
@@ -662,15 +662,10 @@ export default function ReportPage() {
 						<div className="flex items-center gap-4">
 							<ScoreCircle score={report.overallScore} />
 							<div>
-								<p
-									className="text-3xl font-bold"
-									style={{ color: cefrColor(report.cefrLevel) }}
-								>
+								<p className="text-3xl font-bold" style={{ color: cefrColor(report.cefrLevel) }}>
 									{report.cefrLevel}
 								</p>
-								<p className="text-sm text-muted-foreground">
-									{cefrLabel(report.cefrLevel)}
-								</p>
+								<p className="text-sm text-muted-foreground">{cefrLabel(report.cefrLevel)}</p>
 							</div>
 						</div>
 

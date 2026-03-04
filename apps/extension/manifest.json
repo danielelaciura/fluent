@@ -24,7 +24,11 @@
 			"run_at": "document_idle"
 		}
 	],
-	"host_permissions": ["http://localhost:3000/*", "https://accounts.google.com/*", "https://*.r2.cloudflarestorage.com/*"],
+	"host_permissions": [
+		"http://localhost:3000/*",
+		"https://accounts.google.com/*",
+		"https://*.r2.cloudflarestorage.com/*"
+	],
 	"icons": {
 		"16": "src/assets/icon-16.png",
 		"48": "src/assets/icon-48.png",
