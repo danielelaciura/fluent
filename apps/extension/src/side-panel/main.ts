@@ -1,4 +1,4 @@
-import type { RecentSession } from "../lib/api.js";
+import { getSession, type RecentSession } from "../lib/api.js";
 import type { AuthUser } from "../lib/auth.js";
 import type { RecordingState } from "../lib/state.js";
 
@@ -48,6 +48,7 @@ interface AppState {
 }
 
 let timerInterval: ReturnType<typeof setInterval> | null = null;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 // ─── Timer ───────────────────────────────────────────
 function formatTime(totalSeconds: number): string {
@@ -70,6 +71,29 @@ function stopTimer() {
 	if (timerInterval !== null) {
 		clearInterval(timerInterval);
 		timerInterval = null;
+	}
+}
+
+// ─── Processing poll ─────────────────────────────────
+function startProcessingPoll(sessionId: string) {
+	stopProcessingPoll();
+	pollInterval = setInterval(async () => {
+		try {
+			const session = await getSession(sessionId);
+			if (session.status === "complete" || session.status === "error") {
+				stopProcessingPoll();
+				chrome.runtime.sendMessage({ type: "RESET_STATE" });
+			}
+		} catch {
+			// API unreachable — keep polling
+		}
+	}, 5000);
+}
+
+function stopProcessingPoll() {
+	if (pollInterval !== null) {
+		clearInterval(pollInterval);
+		pollInterval = null;
 	}
 }
 
@@ -131,6 +155,11 @@ function renderSessions(sessions: RecentSession[]) {
 			durEl.className = "session-duration";
 			durEl.textContent = formatDuration(s.durationSeconds);
 			left.appendChild(durEl);
+			
+			const link = document.createElement("div") ;
+			link.className = "link";
+			link.textContent = card.href;
+			left.appendChild(link);
 		}
 
 		const right = document.createElement("div");
@@ -176,8 +205,9 @@ function updateUI(app: AppState) {
 		headerUser.hidden = true;
 	}
 
-	// Stop timer by default (restart only for recording)
+	// Stop timer and poll by default (restart only when needed)
 	stopTimer();
+	stopProcessingPoll();
 
 	// State section
 	if (!user) {
@@ -196,6 +226,7 @@ function updateUI(app: AppState) {
 
 		case "recording":
 			showSection(sectionRecording);
+			stopBtn.disabled = false;
 			if (recordingStartedAt) {
 				startTimer(recordingStartedAt);
 			}
@@ -212,6 +243,7 @@ function updateUI(app: AppState) {
 			if (lastSessionId) {
 				reportLink.href = `http://localhost:5173/sessions/${lastSessionId}`;
 				reportLink.hidden = false;
+				startProcessingPoll(lastSessionId);
 			} else {
 				reportLink.hidden = true;
 			}
@@ -291,10 +323,8 @@ startBtn.addEventListener("click", () => {
 
 stopBtn.addEventListener("click", () => {
 	stopBtn.disabled = true;
-	chrome.runtime.sendMessage({ type: "STOP_RECORDING" }, () => {
-		stopBtn.disabled = false;
-		refreshState();
-	});
+	chrome.runtime.sendMessage({ type: "STOP_RECORDING" });
+	// UI will update automatically via storage.onChanged when state transitions
 });
 
 resetBtnProcessing.addEventListener("click", () => {
@@ -323,6 +353,11 @@ async function checkMicPermission() {
 micSetupLink.addEventListener("click", (e) => {
 	e.preventDefault();
 	chrome.tabs.create({ url: chrome.runtime.getURL("src/permissions/permissions.html") });
+});
+
+// ─── React to background state changes ───────────────
+chrome.storage.local.onChanged.addListener(() => {
+	refreshState();
 });
 
 // ─── Init ────────────────────────────────────────────

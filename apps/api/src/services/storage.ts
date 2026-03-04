@@ -88,3 +88,54 @@ export async function deleteAudio(sessionId: string): Promise<void> {
 	});
 	await getClient().send(command);
 }
+
+// ─── Chunk-based storage ─────────────────────────────────
+
+function chunkKey(sessionId: string, chunkIndex: number): string {
+	return `audio/${sessionId}/chunk-${String(chunkIndex).padStart(3, "0")}.webm`;
+}
+
+export async function uploadChunk(
+	sessionId: string,
+	chunkIndex: number,
+	data: Buffer,
+	contentType: string,
+): Promise<void> {
+	const client = getClient();
+	const command = new PutObjectCommand({
+		Bucket: bucket,
+		Key: chunkKey(sessionId, chunkIndex),
+		Body: data,
+		ContentType: contentType,
+	});
+	await client.send(command);
+}
+
+export async function downloadChunk(sessionId: string, chunkIndex: number): Promise<Buffer> {
+	const client = getClient();
+	const command = new GetObjectCommand({
+		Bucket: bucket,
+		Key: chunkKey(sessionId, chunkIndex),
+	});
+	const response = await client.send(command);
+	const stream = response.Body;
+	if (!stream) {
+		throw new Error(`No audio chunk ${chunkIndex} found for session ${sessionId}`);
+	}
+	const chunks: Uint8Array[] = [];
+	for await (const chunk of stream as AsyncIterable<Uint8Array>) {
+		chunks.push(chunk);
+	}
+	return Buffer.concat(chunks);
+}
+
+export async function deleteSessionChunks(sessionId: string, totalChunks: number): Promise<void> {
+	const client = getClient();
+	for (let i = 0; i < totalChunks; i++) {
+		const command = new DeleteObjectCommand({
+			Bucket: bucket,
+			Key: chunkKey(sessionId, i),
+		});
+		await client.send(command);
+	}
+}

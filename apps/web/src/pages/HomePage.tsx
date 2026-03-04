@@ -128,7 +128,7 @@ export default function HomePage() {
 					</CardContent>
 				</Card>
 			) : (
-				<Card className="p-5">
+				<Card>
 					<Table>
 						<TableHeader>
 							<TableRow>
@@ -153,7 +153,7 @@ export default function HomePage() {
 										className="cursor-pointer"
 										onClick={() => navigate(`/sessions/${s.id}`)}
 									>
-										<TableCell className="py-3 font-medium">
+										<TableCell className="py-5 font-medium">
 											<h5>
 											<EditableName
 												sessionId={s.id}

@@ -1,4 +1,4 @@
-import { createSession, listSessions, uploadSession } from "../lib/api.js";
+import { completeRecording, createSession, listSessions, uploadChunk } from "../lib/api.js";
 import * as auth from "../lib/auth.js";
 import {
 	type RecordingState,
@@ -15,6 +15,10 @@ import {
 } from "../lib/state.js";
 
 const OFFSCREEN_URL = "src/offscreen/offscreen.html";
+
+// Track the current recording session and in-flight chunk uploads
+let activeSessionId: string | null = null;
+const pendingUploads: Set<Promise<void>> = new Set();
 
 async function updateBadge() {
 	const recording = await getRecordingState();
@@ -80,18 +84,20 @@ async function startRecording(): Promise<RecordingState> {
 		throw new Error("No active Meet tab");
 	}
 
-	const streamId = await chrome.tabCapture.getMediaStreamId({
-		targetTabId: meet.meetTabId,
-	});
+	// Create session before recording starts so chunks can be uploaded immediately
+	const { sessionId } = await createSession();
+	activeSessionId = sessionId;
+	await setLastSessionId(sessionId);
 
 	await ensureOffscreenDocument();
 
 	const response = await chrome.runtime.sendMessage({
 		type: "START_RECORDING",
-		streamId,
+		source: "service-worker",
 	});
 
 	if (!response?.ok) {
+		activeSessionId = null;
 		throw new Error(response?.error ?? "Failed to start recording");
 	}
 
@@ -107,34 +113,62 @@ async function startRecording(): Promise<RecordingState> {
 }
 
 async function stopRecording(): Promise<void> {
-	// Send stop to offscreen — the RECORDING_COMPLETE message will trigger upload
-	await chrome.runtime.sendMessage({ type: "STOP_RECORDING" });
+	// Send stop to offscreen — the RECORDING_STOPPED message will trigger finalization
+	await chrome.runtime.sendMessage({ type: "STOP_RECORDING", source: "service-worker" });
 }
 
-async function uploadRecording(base64: string, mimeType: string, durationSeconds: number) {
+function handleChunkReady(chunkIndex: number, base64: string, mimeType: string) {
+	const sessionId = activeSessionId;
+	if (!sessionId) {
+		console.error("[sw] CHUNK_READY but no active session");
+		return;
+	}
+
+	// Decode base64 to blob
+	const binaryString = atob(base64);
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) {
+		bytes[i] = binaryString.charCodeAt(i);
+	}
+	const blob = new Blob([bytes], { type: mimeType });
+	console.log(`[sw] Uploading chunk ${chunkIndex}: ${(blob.size / 1024).toFixed(1)} KB`);
+
+	const uploadPromise = uploadChunk(sessionId, chunkIndex, blob)
+		.then(() => {
+			console.log(`[sw] Chunk ${chunkIndex} uploaded`);
+		})
+		.catch((err) => {
+			console.error(`[sw] Chunk ${chunkIndex} upload failed:`, err);
+			throw err;
+		})
+		.finally(() => {
+			pendingUploads.delete(uploadPromise);
+		});
+
+	pendingUploads.add(uploadPromise);
+}
+
+async function handleRecordingStopped(totalChunks: number, durationSeconds: number) {
+	const sessionId = activeSessionId;
+	if (!sessionId) {
+		console.error("[sw] RECORDING_STOPPED but no active session");
+		return;
+	}
+
 	try {
 		await setRecordingStartedAt(null);
 		await setRecordingState("uploading");
 		await updateBadge();
 
-		console.log(
-			`[sw] Uploading: base64 ${(base64.length / 1024).toFixed(1)} KB, ${durationSeconds}s, ${mimeType}`,
-		);
+		// Wait for all in-flight chunk uploads to finish
+		console.log(`[sw] Waiting for ${pendingUploads.size} pending uploads...`);
+		await Promise.all([...pendingUploads]);
+		console.log("[sw] All chunks uploaded");
 
-		// Decode base64 to blob
-		const binaryString = atob(base64);
-		const bytes = new Uint8Array(binaryString.length);
-		for (let i = 0; i < binaryString.length; i++) {
-			bytes[i] = binaryString.charCodeAt(i);
-		}
-		const blob = new Blob([bytes], { type: mimeType });
-		console.log(`[sw] Decoded blob: ${(blob.size / 1024).toFixed(1)} KB`);
+		// Signal to the API that recording is complete
+		await completeRecording(sessionId, totalChunks, durationSeconds);
 
-		// Create session and upload audio through API
-		const { sessionId } = await createSession();
-		await uploadSession(sessionId, blob, durationSeconds);
-
-		await setLastSessionId(sessionId);
+		activeSessionId = null;
 		await setRecordingState("processing");
 		await updateBadge();
 	} catch (err: unknown) {
@@ -143,6 +177,7 @@ async function uploadRecording(base64: string, mimeType: string, durationSeconds
 		await setRecordingState("error");
 		await updateBadge();
 	} finally {
+		pendingUploads.clear();
 		await closeOffscreenDocument();
 	}
 }
@@ -151,7 +186,7 @@ async function handleMeetClosed() {
 	const recording = await getRecordingState();
 	if (recording === "recording") {
 		await stopRecording();
-		// Upload will be triggered by RECORDING_COMPLETE message
+		// Upload will be triggered by RECORDING_STOPPED message
 	}
 	await setMeetState({ onMeetTab: false, meetTabId: null });
 	await updateBadge();
@@ -209,9 +244,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 
 	if (message.type === "START_RECORDING") {
-		// Only handle from side panel — offscreen document also receives this,
-		// but it checks for streamId which side panel messages don't have
-		if (!message.streamId) {
+		// Only handle from side panel — offscreen document handles its own
+		// START_RECORDING messages internally (source: "service-worker")
+		if (message.source !== "service-worker") {
 			startRecording()
 				.then((state) => sendResponse({ state }))
 				.catch((err: unknown) => {
@@ -224,18 +259,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 
 	if (message.type === "STOP_RECORDING") {
-		// Only handle from side panel (no base64 field)
-		if (!message.base64) {
-			stopRecording()
-				.then(() => sendResponse({ ok: true }))
-				.catch(() => sendResponse({ ok: false }));
-			return true;
-		}
+		// Offscreen document handles this directly via broadcast.
+		// Just acknowledge to the sender.
 		return false;
 	}
 
-	if (message.type === "RECORDING_COMPLETE") {
-		uploadRecording(message.base64, message.mimeType, message.durationSeconds);
+	if (message.type === "CHUNK_READY") {
+		handleChunkReady(message.chunkIndex, message.base64, message.mimeType);
+		return false;
+	}
+
+	if (message.type === "RECORDING_STOPPED") {
+		handleRecordingStopped(message.totalChunks, message.durationSeconds);
 		return false;
 	}
 
@@ -244,6 +279,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			await setRecordingState("idle");
 			await setLastSessionId(null);
 			await setUploadError(null);
+			activeSessionId = null;
+			pendingUploads.clear();
 			await updateBadge();
 			sendResponse({ ok: true });
 		})();

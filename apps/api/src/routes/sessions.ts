@@ -3,7 +3,11 @@ import type { FastifyInstance } from "fastify";
 import { db } from "../db/index.js";
 import { reports, sessions } from "../db/schema.js";
 import { sessionQueue } from "../queue/index.js";
-import { getUploadUrl, uploadAudio } from "../services/storage.js";
+import {
+	getUploadUrl,
+	uploadAudio,
+	uploadChunk as uploadChunkToStorage,
+} from "../services/storage.js";
 
 export default async function sessionRoutes(fastify: FastifyInstance) {
 	// All routes require authentication
@@ -226,7 +230,108 @@ export default async function sessionRoutes(fastify: FastifyInstance) {
 		},
 	);
 
-	// POST /sessions/:id/complete-upload — mark upload as done, trigger processing
+	// POST /sessions/:id/chunks/:index — upload a single audio chunk
+	fastify.post<{ Params: { id: string; index: string } }>(
+		"/sessions/:id/chunks/:index",
+		async (request, reply) => {
+			const { id, index } = request.params;
+			const chunkIndex = Number(index);
+
+			if (!Number.isInteger(chunkIndex) || chunkIndex < 0) {
+				reply.code(400).send({ error: "Invalid chunk index" });
+				return;
+			}
+
+			const [session] = await db
+				.select({ id: sessions.id, status: sessions.status })
+				.from(sessions)
+				.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)));
+
+			if (!session) {
+				reply.code(404).send({ error: "Session not found" });
+				return;
+			}
+
+			if (session.status !== "created" && session.status !== "uploading") {
+				reply.code(409).send({
+					error: `Cannot upload chunk: session status is '${session.status}'`,
+				});
+				return;
+			}
+
+			const body = await request.file();
+			if (!body) {
+				reply.code(400).send({ error: "No file uploaded" });
+				return;
+			}
+
+			const chunks: Buffer[] = [];
+			for await (const chunk of body.file) {
+				chunks.push(chunk);
+			}
+			const buffer = Buffer.concat(chunks);
+
+			await uploadChunkToStorage(id, chunkIndex, buffer, body.mimetype || "audio/webm");
+
+			// Set status to uploading on first chunk
+			if (session.status === "created") {
+				await db
+					.update(sessions)
+					.set({ status: "uploading", updatedAt: new Date() })
+					.where(eq(sessions.id, id));
+			}
+
+			return { ok: true };
+		},
+	);
+
+	// POST /sessions/:id/complete-recording — all chunks uploaded, trigger processing
+	fastify.post<{
+		Params: { id: string };
+		Body: { totalChunks: number; durationSeconds?: number };
+	}>("/sessions/:id/complete-recording", async (request, reply) => {
+		const { id } = request.params;
+		const { totalChunks, durationSeconds } = request.body || {};
+
+		if (!Number.isInteger(totalChunks) || totalChunks < 1) {
+			reply.code(400).send({ error: "totalChunks must be a positive integer" });
+			return;
+		}
+
+		const [session] = await db
+			.select({ id: sessions.id, status: sessions.status })
+			.from(sessions)
+			.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)));
+
+		if (!session) {
+			reply.code(404).send({ error: "Session not found" });
+			return;
+		}
+
+		if (session.status !== "uploading") {
+			reply.code(409).send({
+				error: `Cannot complete recording: session status is '${session.status}'`,
+			});
+			return;
+		}
+
+		await db
+			.update(sessions)
+			.set({
+				status: "processing",
+				totalChunks,
+				durationSeconds: durationSeconds ?? null,
+				updatedAt: new Date(),
+			})
+			.where(eq(sessions.id, id));
+
+		await sessionQueue.add("process", { sessionId: id });
+		fastify.log.info({ sessionId: id }, "Chunked session queued for processing");
+
+		return { status: "processing" };
+	});
+
+	// POST /sessions/:id/complete-upload — mark upload as done, trigger processing (legacy)
 	fastify.post<{ Params: { id: string }; Body: { durationSeconds?: number } }>(
 		"/sessions/:id/complete-upload",
 		async (request, reply) => {

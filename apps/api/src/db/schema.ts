@@ -46,6 +46,7 @@ export const sessions = pgTable("sessions", {
 	name: varchar("name", { length: 255 }),
 	durationSeconds: integer("duration_seconds"),
 	audioUrl: varchar("audio_url", { length: 1024 }),
+	totalChunks: integer("total_chunks"),
 	status: sessionStatusEnum("status").default("created").notNull(),
 	errorMessage: varchar("error_message", { length: 1024 }),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

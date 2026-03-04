@@ -3,8 +3,13 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { reports, sessions, transcriptions, userProgress } from "../db/schema.js";
 import { analyzeTranscription } from "../services/analysis.js";
-import { deleteAudio, downloadAudio } from "../services/storage.js";
-import { transcribeAudio } from "../services/transcription.js";
+import {
+	deleteAudio,
+	deleteSessionChunks,
+	downloadAudio,
+	downloadChunk,
+} from "../services/storage.js";
+import { type TranscriptionResult, transcribeAudio } from "../services/transcription.js";
 import { redisConnection } from "./redis.js";
 
 export interface SessionJobData {
@@ -22,9 +27,9 @@ export function startWorker() {
 			const { sessionId } = job.data;
 			console.log(`[worker] Processing session ${sessionId}`);
 
-			// Get session to find userId
+			// Get session to find userId and totalChunks
 			const [session] = await db
-				.select({ userId: sessions.userId })
+				.select({ userId: sessions.userId, totalChunks: sessions.totalChunks })
 				.from(sessions)
 				.where(eq(sessions.id, sessionId));
 
@@ -38,17 +43,73 @@ export function startWorker() {
 				.set({ status: "processing", updatedAt: new Date() })
 				.where(eq(sessions.id, sessionId));
 
-			// Step 1: Download audio from R2
-			console.log("[worker] Downloading audio");
-			const audioBuffer = await downloadAudio(sessionId);
-			console.log(`[worker] Downloaded ${(audioBuffer.length / 1024).toFixed(1)} KB`);
+			let transcription: TranscriptionResult;
 
-			// Step 2: Transcribe with Whisper
-			console.log("[worker] Transcribing");
-			const transcription = await transcribeAudio(audioBuffer);
+			if (session.totalChunks != null) {
+				// ─── Chunked flow ─────────────────────────────────
+				console.log(`[worker] Chunked session: ${session.totalChunks} chunks`);
+				const chunkTranscriptions: TranscriptionResult[] = [];
+
+				for (let i = 0; i < session.totalChunks; i++) {
+					console.log(`[worker] Downloading chunk ${i}`);
+					const chunkBuffer = await downloadChunk(sessionId, i);
+					console.log(
+						`[worker] Chunk ${i}: ${(chunkBuffer.length / 1024).toFixed(1)} KB`,
+					);
+
+					console.log(`[worker] Transcribing chunk ${i}`);
+					const chunkResult = await transcribeAudio(chunkBuffer);
+					console.log(
+						`[worker] Chunk ${i}: ${chunkResult.words.length} words`,
+					);
+					chunkTranscriptions.push(chunkResult);
+				}
+
+				// Merge transcriptions with offset timestamps
+				const mergedText: string[] = [];
+				const mergedWords: TranscriptionResult["words"] = [];
+				let timeOffset = 0;
+
+				for (const chunk of chunkTranscriptions) {
+					mergedText.push(chunk.text);
+					for (const word of chunk.words) {
+						mergedWords.push({
+							word: word.word,
+							start: word.start + timeOffset,
+							end: word.end + timeOffset,
+						});
+					}
+					// Use the last word's end time as the chunk duration for offset
+					if (chunk.words.length > 0) {
+						timeOffset += chunk.words[chunk.words.length - 1].end;
+					}
+				}
+
+				transcription = {
+					text: mergedText.join(" "),
+					words: mergedWords,
+				};
+
+				// Delete chunks from R2
+				await deleteSessionChunks(sessionId, session.totalChunks);
+				console.log("[worker] Chunks deleted from R2");
+			} else {
+				// ─── Legacy single-file flow ─────────────────────
+				console.log("[worker] Legacy single-file session");
+				const audioBuffer = await downloadAudio(sessionId);
+				console.log(
+					`[worker] Downloaded ${(audioBuffer.length / 1024).toFixed(1)} KB`,
+				);
+
+				transcription = await transcribeAudio(audioBuffer);
+
+				await deleteAudio(sessionId);
+				console.log("[worker] Audio deleted from R2");
+			}
+
 			console.log(`[worker] Transcribed: ${transcription.words.length} words`);
 
-			// Step 3: Save transcription
+			// Save transcription
 			await db.insert(transcriptions).values({
 				sessionId,
 				fullText: transcription.text,
@@ -60,14 +121,14 @@ export function startWorker() {
 				.set({ status: "transcribed", updatedAt: new Date() })
 				.where(eq(sessions.id, sessionId));
 
-			// Step 4: Analyze with Claude
+			// Analyze with Claude
 			console.log("[worker] Analyzing with Claude");
 			const analysis = await analyzeTranscription(transcription.text);
 			console.log(
 				`[worker] Analysis complete: ${analysis.cefr_level} (${analysis.overall_score}/100)`,
 			);
 
-			// Step 5: Save report
+			// Save report
 			await db.insert(reports).values({
 				sessionId,
 				overallScore: analysis.overall_score,
@@ -79,7 +140,7 @@ export function startWorker() {
 				tips: analysis.tips,
 			});
 
-			// Step 6: Save progress snapshot
+			// Save progress snapshot
 			const today = new Date().toISOString().split("T")[0];
 			await db.insert(userProgress).values({
 				userId: session.userId,
@@ -91,11 +152,7 @@ export function startWorker() {
 				fluencyScore: analysis.fluency.score,
 			});
 
-			// Step 7: Delete audio from R2 (transcription kept in DB for debugging)
-			await deleteAudio(sessionId);
-			console.log("[worker] Audio deleted from R2");
-
-			// Step 8: Mark complete
+			// Mark complete
 			await db
 				.update(sessions)
 				.set({ status: "complete", audioUrl: null, updatedAt: new Date() })

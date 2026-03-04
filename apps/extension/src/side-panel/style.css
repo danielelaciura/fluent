@@ -357,7 +357,7 @@ body {
 	color: var(--text);
 }
 
-.session-duration {
+.session-duration, .link {
 	font-size: 11px;
 	color: var(--text-muted);
 }
