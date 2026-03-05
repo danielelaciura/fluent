@@ -11,10 +11,12 @@ export function registerLogoutCallback(cb: LogoutCallback): void {
 export async function fetchApi(path: string, options?: RequestInit): Promise<Response> {
 	const token = getToken();
 
+	const hasBody = options?.body != null;
+
 	const response = await fetch(`/api${path}`, {
 		...options,
 		headers: {
-			"Content-Type": "application/json",
+			...(hasBody ? { "Content-Type": "application/json" } : {}),
 			...(token ? { Authorization: `Bearer ${token}` } : {}),
 			...options?.headers,
 		},

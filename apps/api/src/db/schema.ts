@@ -31,6 +31,8 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
 
 export const periodTypeEnum = pgEnum("period_type", ["weekly", "monthly"]);
 
+export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
+
 // ─── Users ───────────────────────────────────────────────
 export const users = pgTable("users", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -39,6 +41,7 @@ export const users = pgTable("users", {
 	lastName: varchar("last_name", { length: 255 }),
 	avatarUrl: varchar("avatar_url", { length: 1024 }),
 	googleId: varchar("google_id", { length: 255 }).notNull().unique(),
+	role: userRoleEnum("role").default("user").notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }),
 });

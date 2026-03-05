@@ -15,7 +15,10 @@
 					<img src="../assets/zest-logo.png" alt="Zest" class="logo-image" />
 				</div>
 				<div id="header-user" class="header-user" hidden>
-					<p id="user-name" class="user-name"></p>
+					<div class="header-user-row">
+						<p id="user-name" class="user-name"></p>
+						<span id="plan-badge" class="plan-badge" hidden></span>
+					</div>
 					<p id="logout-btn" class="btn-text">Sign out</p>
 				</div>
 			</header>
@@ -43,8 +46,27 @@
 					<span id="meet-dot" class="dot dot-green" hidden></span>
 					<span class="status-label">Ready to record</span>
 				</div>
+
+				<!-- Usage bar -->
+				<div id="usage-bar" class="usage-bar" hidden>
+					<div class="usage-bar-header">
+						<span id="usage-text" class="usage-text"></span>
+					</div>
+					<div class="usage-track">
+						<div id="usage-fill" class="usage-fill"></div>
+					</div>
+					<div id="usage-warning" class="usage-warning" hidden></div>
+					<a id="upgrade-link" class="upgrade-link" href="http://localhost:5173/subscription" target="_blank" hidden>Upgrade to Pro</a>
+				</div>
+
 				<button id="start-btn" class="btn btn-primary" type="button">Start Recording</button>
 				<p id="idle-error" class="inline-error" hidden></p>
+
+				<!-- Limit reached message -->
+				<div id="limit-reached" class="limit-reached" hidden>
+					<p>You've reached your recording limit for this period.</p>
+					<a href="http://localhost:5173/subscription" target="_blank" class="upgrade-link">Upgrade your plan</a>
+				</div>
 			</section>
 
 			<!-- Recording -->
@@ -54,6 +76,7 @@
 					<span class="status-label">Recording</span>
 				</div>
 				<div id="timer" class="timer">00:00</div>
+				<div id="recording-warning" class="recording-warning" hidden></div>
 				<button id="stop-btn" class="btn btn-danger" type="button">Stop Recording</button>
 			</section>
 

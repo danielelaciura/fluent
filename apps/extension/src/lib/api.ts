@@ -112,3 +112,31 @@ export async function completeRecording(
 		durationSeconds,
 	});
 }
+
+export interface UsageResponse {
+	plan: {
+		id: string;
+		name: string;
+		maxSeconds: number;
+		periodType: string;
+	};
+	currentPeriod: { start: string; end: string };
+	usedSeconds: number;
+	remainingSeconds: number;
+	isLimitReached: boolean;
+	percentUsed: number;
+}
+
+export async function getUsage(): Promise<UsageResponse> {
+	return apiCall("GET", "/users/me/usage");
+}
+
+export interface CanRecordResponse {
+	allowed: boolean;
+	remainingSeconds: number;
+	reason?: string;
+}
+
+export async function getCanRecord(): Promise<CanRecordResponse> {
+	return apiCall("GET", "/users/me/can-record");
+}

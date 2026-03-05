@@ -3,7 +3,9 @@ import multipart from "@fastify/multipart";
 import Fastify from "fastify";
 import { sql } from "./db/index.js";
 import authenticate from "./plugins/authenticate.js";
+import authenticateAdmin from "./plugins/authenticateAdmin.js";
 import { startWorker } from "./queue/index.js";
+import adminRoutes from "./routes/admin.js";
 import authRoutes from "./routes/auth.js";
 import sessionRoutes from "./routes/sessions.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
@@ -15,6 +17,8 @@ const server = Fastify({
 
 server.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } }); // 200 MB
 server.register(authenticate);
+server.register(authenticateAdmin);
+server.register(adminRoutes);
 server.register(authRoutes);
 server.register(sessionRoutes);
 server.register(subscriptionRoutes);

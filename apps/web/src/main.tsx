@@ -11,6 +11,7 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
 import ReportPage from "./pages/ReportPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
 import "./index.css";
 
 const router = createBrowserRouter([
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
 				children: [
 					{ index: true, element: <HomePage /> },
 					{ path: "sessions/:id", element: <ReportPage /> },
+					{ path: "subscription", element: <SubscriptionPage /> },
 					{ path: "profile", element: <ProfilePage /> },
 				],
 			},

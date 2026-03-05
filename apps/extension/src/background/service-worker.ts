@@ -1,4 +1,12 @@
-import { completeRecording, createSession, listSessions, uploadChunk } from "../lib/api.js";
+import {
+	type UsageResponse,
+	completeRecording,
+	createSession,
+	getCanRecord,
+	getUsage,
+	listSessions,
+	uploadChunk,
+} from "../lib/api.js";
 import * as auth from "../lib/auth.js";
 import {
 	type RecordingState,
@@ -19,6 +27,29 @@ const OFFSCREEN_URL = "src/offscreen/offscreen.html";
 // Track the current recording session and in-flight chunk uploads
 let activeSessionId: string | null = null;
 const pendingUploads: Set<Promise<void>> = new Set();
+
+// Usage cache (60s TTL)
+let cachedUsage: UsageResponse | null = null;
+let usageFetchedAt = 0;
+const USAGE_CACHE_TTL = 60_000;
+
+async function fetchUsageCached(forceRefresh = false): Promise<UsageResponse | null> {
+	const now = Date.now();
+	if (!forceRefresh && cachedUsage && now - usageFetchedAt < USAGE_CACHE_TTL) {
+		return cachedUsage;
+	}
+	try {
+		cachedUsage = await getUsage();
+		usageFetchedAt = now;
+		return cachedUsage;
+	} catch {
+		return cachedUsage; // return stale on error
+	}
+}
+
+function invalidateUsageCache() {
+	usageFetchedAt = 0;
+}
 
 async function updateBadge() {
 	const recording = await getRecordingState();
@@ -82,6 +113,12 @@ async function startRecording(): Promise<RecordingState> {
 	const meet = await getMeetState();
 	if (!meet.onMeetTab || meet.meetTabId == null) {
 		throw new Error("No active Meet tab");
+	}
+
+	// Check if user can record (usage limit)
+	const canRecord = await getCanRecord();
+	if (!canRecord.allowed) {
+		throw new Error(canRecord.reason ?? "Recording limit reached");
 	}
 
 	// Create session before recording starts so chunks can be uploaded immediately
@@ -169,8 +206,15 @@ async function handleRecordingStopped(totalChunks: number, durationSeconds: numb
 		await completeRecording(sessionId, totalChunks, durationSeconds);
 
 		activeSessionId = null;
+		invalidateUsageCache();
 		await setRecordingState("processing");
 		await updateBadge();
+
+		// Notify content script so it can hide the recording indicator
+		const meet = await getMeetState();
+		if (meet.meetTabId != null) {
+			chrome.tabs.sendMessage(meet.meetTabId, { type: "RECORDING_STOPPED" });
+		}
 	} catch (err: unknown) {
 		const errorMessage = err instanceof Error ? err.message : "Upload failed";
 		await setUploadError(errorMessage);
@@ -222,12 +266,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			const recordingStartedAt = await getRecordingStartedAt();
 
 			let recentSessions: Awaited<ReturnType<typeof listSessions>> = [];
+			let usage: UsageResponse | null = null;
 			if (user) {
 				try {
 					recentSessions = await listSessions(3);
 				} catch {
 					// API unreachable — leave empty
 				}
+				usage = await fetchUsageCached();
 			}
 
 			sendResponse({
@@ -238,6 +284,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				uploadError,
 				recordingStartedAt,
 				recentSessions,
+				usage,
 			});
 		})();
 		return true;
@@ -259,9 +306,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 
 	if (message.type === "STOP_RECORDING") {
-		// Offscreen document handles this directly via broadcast.
-		// Just acknowledge to the sender.
-		return false;
+		// If from service-worker source, let offscreen handle it directly
+		if (message.source === "service-worker") {
+			return false;
+		}
+		// From side panel or content script — trigger stop
+		stopRecording()
+			.then(() => sendResponse({ ok: true }))
+			.catch((err: unknown) => {
+				const errorMessage = err instanceof Error ? err.message : "Failed to stop";
+				sendResponse({ ok: false, error: errorMessage });
+			});
+		return true;
 	}
 
 	if (message.type === "CHUNK_READY") {

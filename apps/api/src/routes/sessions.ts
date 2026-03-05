@@ -1,9 +1,11 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { db } from "../db/index.js";
-import { reports, sessions } from "../db/schema.js";
+import { reports, sessions, transcriptions, usageRecords, userProgress } from "../db/schema.js";
 import { sessionQueue } from "../queue/index.js";
 import {
+	deleteAudio,
+	deleteSessionChunks,
 	getUploadUrl,
 	uploadAudio,
 	uploadChunk as uploadChunkToStorage,
@@ -131,6 +133,46 @@ export default async function sessionRoutes(fastify: FastifyInstance) {
 			return updated;
 		},
 	);
+
+	// DELETE /sessions/:id — delete session and all related data
+	fastify.delete<{ Params: { id: string } }>("/sessions/:id", async (request, reply) => {
+		const { id } = request.params;
+
+		const [session] = await db
+			.select({
+				id: sessions.id,
+				audioUrl: sessions.audioUrl,
+				totalChunks: sessions.totalChunks,
+			})
+			.from(sessions)
+			.where(and(eq(sessions.id, id), eq(sessions.userId, request.user.userId)));
+
+		if (!session) {
+			reply.code(404).send({ error: "Session not found" });
+			return;
+		}
+
+		await db.transaction(async (tx) => {
+			await tx.delete(userProgress).where(eq(userProgress.sessionId, id));
+			await tx.delete(reports).where(eq(reports.sessionId, id));
+			await tx.delete(transcriptions).where(eq(transcriptions.sessionId, id));
+			await tx.delete(usageRecords).where(eq(usageRecords.sessionId, id));
+			await tx.delete(sessions).where(eq(sessions.id, id));
+		});
+
+		// Clean up storage (best-effort, don't fail the request)
+		try {
+			if (session.totalChunks) {
+				await deleteSessionChunks(id, session.totalChunks);
+			} else if (session.audioUrl) {
+				await deleteAudio(id);
+			}
+		} catch (err) {
+			fastify.log.warn({ sessionId: id, err }, "Failed to delete audio from storage");
+		}
+
+		reply.code(204).send();
+	});
 
 	// GET /sessions/:id/report — get the analysis report
 	fastify.get<{ Params: { id: string } }>("/sessions/:id/report", async (request, reply) => {

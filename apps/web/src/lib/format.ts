@@ -41,3 +41,17 @@ const CEFR_LABELS: Record<string, string> = {
 export function cefrLabel(level: string): string {
 	return CEFR_LABELS[level] ?? level;
 }
+
+export function formatUsageDuration(seconds: number): string {
+	const totalMinutes = Math.floor(seconds / 60);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (hours > 0) return `${hours}h ${minutes}m`;
+	return `${minutes}m`;
+}
+
+export function usageBarColor(percent: number): string {
+	if (percent >= 90) return "#EF4444";
+	if (percent >= 70) return "#F59E0B";
+	return "#10B981";
+}

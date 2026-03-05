@@ -1,4 +1,4 @@
-import { ChevronRight, List, LogOut, Settings } from "lucide-react";
+import { ChevronRight, CreditCard, List, LogOut, Settings } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate, useOutletContext } from "react-router";
 import useAuth from "../hooks/useAuth";
@@ -128,6 +128,12 @@ export default function Layout() {
 
 				{/* Bottom section */}
 				<div className="px-3 pb-4">
+					<Button variant="ghost" className="w-full justify-start gap-2" asChild>
+						<Link to="/subscription">
+							<CreditCard className="size-4" />
+							Plan
+						</Link>
+					</Button>
 					<Button variant="ghost" className="w-full justify-start gap-2" asChild>
 						<Link to="/profile">
 							<Settings className="size-4" />

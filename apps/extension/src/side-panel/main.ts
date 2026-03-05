@@ -1,4 +1,4 @@
-import { type RecentSession, getSession } from "../lib/api.js";
+import { type RecentSession, type UsageResponse, getSession } from "../lib/api.js";
 import type { AuthUser } from "../lib/auth.js";
 import type { RecordingState } from "../lib/state.js";
 
@@ -18,8 +18,17 @@ const meetDot = document.getElementById("meet-dot") as HTMLSpanElement;
 const startBtn = document.getElementById("start-btn") as HTMLButtonElement;
 const idleError = document.getElementById("idle-error") as HTMLParagraphElement;
 
+const planBadge = document.getElementById("plan-badge") as HTMLSpanElement;
+const usageBar = document.getElementById("usage-bar") as HTMLDivElement;
+const usageText = document.getElementById("usage-text") as HTMLSpanElement;
+const usageFill = document.getElementById("usage-fill") as HTMLDivElement;
+const usageWarning = document.getElementById("usage-warning") as HTMLDivElement;
+const upgradeLink = document.getElementById("upgrade-link") as HTMLAnchorElement;
+const limitReached = document.getElementById("limit-reached") as HTMLDivElement;
+
 const sectionRecording = document.getElementById("section-recording") as HTMLElement;
 const timerEl = document.getElementById("timer") as HTMLDivElement;
+const recordingWarning = document.getElementById("recording-warning") as HTMLDivElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 
 const sectionUploading = document.getElementById("section-uploading") as HTMLElement;
@@ -45,10 +54,12 @@ interface AppState {
 	uploadError: string | null;
 	recordingStartedAt: number | null;
 	recentSessions: RecentSession[];
+	usage: UsageResponse | null;
 }
 
 let timerInterval: ReturnType<typeof setInterval> | null = null;
 let pollInterval: ReturnType<typeof setInterval> | null = null;
+let remainingAtRecordingStart: number | null = null;
 
 // ─── Timer ───────────────────────────────────────────
 function formatTime(totalSeconds: number): string {
@@ -62,6 +73,30 @@ function startTimer(startedAt: number) {
 	const tick = () => {
 		const elapsed = Math.floor((Date.now() - startedAt) / 1000);
 		timerEl.textContent = formatTime(elapsed);
+
+		// Countdown logic for usage limit
+		if (remainingAtRecordingStart != null) {
+			const remaining = Math.max(0, remainingAtRecordingStart - elapsed);
+
+			if (remaining <= 0) {
+				// Auto-stop recording
+				recordingWarning.textContent = "Recording limit reached";
+				recordingWarning.className = "recording-warning recording-warning-red";
+				recordingWarning.hidden = false;
+				chrome.runtime.sendMessage({ type: "STOP_RECORDING" });
+				stopTimer();
+				return;
+			}
+
+			if (remaining <= 300) {
+				const mins = Math.ceil(remaining / 60);
+				recordingWarning.textContent = `${mins} minute${mins !== 1 ? "s" : ""} of recording remaining`;
+				recordingWarning.className = "recording-warning recording-warning-amber";
+				recordingWarning.hidden = false;
+			} else {
+				recordingWarning.hidden = true;
+			}
+		}
 	};
 	tick();
 	timerInterval = setInterval(tick, 1000);
@@ -127,6 +162,67 @@ function formatDuration(seconds: number | null): string {
 	return `${Math.floor(seconds / 60)}m`;
 }
 
+function formatUsageDuration(seconds: number): string {
+	const totalMinutes = Math.floor(seconds / 60);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (hours > 0) return `${hours}h ${minutes}m`;
+	return `${minutes}m`;
+}
+
+function getUsageColor(percent: number): "green" | "amber" | "red" {
+	if (percent >= 90) return "red";
+	if (percent >= 70) return "amber";
+	return "green";
+}
+
+function renderUsage(usage: UsageResponse | null, planId: string | undefined) {
+	// Plan badge
+	if (planId) {
+		planBadge.hidden = false;
+		planBadge.textContent = planId.toUpperCase();
+		planBadge.className = `plan-badge plan-badge-${planId}`;
+	} else {
+		planBadge.hidden = true;
+	}
+
+	if (!usage) {
+		usageBar.hidden = true;
+		limitReached.hidden = true;
+		return;
+	}
+
+	usageBar.hidden = false;
+	const color = getUsageColor(usage.percentUsed);
+	const usedStr = formatUsageDuration(usage.usedSeconds);
+	const maxStr = formatUsageDuration(usage.plan.maxSeconds);
+	const periodLabel = usage.plan.periodType === "weekly" ? "this week" : "this month";
+
+	usageText.textContent = `${usedStr} / ${maxStr} ${periodLabel}`;
+	usageFill.style.width = `${Math.min(100, usage.percentUsed)}%`;
+	usageFill.className = `usage-fill usage-fill-${color}`;
+
+	// Warning for low remaining time (< 15 minutes)
+	if (!usage.isLimitReached && usage.remainingSeconds < 900) {
+		const remaining = Math.floor(usage.remainingSeconds / 60);
+		usageWarning.textContent = `${remaining} minutes remaining`;
+		usageWarning.hidden = false;
+	} else {
+		usageWarning.hidden = true;
+	}
+
+	// Upgrade link for free users
+	upgradeLink.hidden = planId !== "free";
+
+	// Limit reached
+	if (usage.isLimitReached) {
+		limitReached.hidden = false;
+		startBtn.disabled = true;
+	} else {
+		limitReached.hidden = true;
+	}
+}
+
 function renderSessions(sessions: RecentSession[]) {
 	if (sessions.length === 0) {
 		sectionSessions.hidden = true;
@@ -156,10 +252,10 @@ function renderSessions(sessions: RecentSession[]) {
 			durEl.textContent = formatDuration(s.durationSeconds);
 			left.appendChild(durEl);
 
-			const link = document.createElement("div");
-			link.className = "link";
-			link.textContent = card.href;
-			left.appendChild(link);
+			// const link = document.createElement("div");
+			// link.className = "link";
+			// link.textContent = card.href;
+			// left.appendChild(link);
 		}
 
 		const right = document.createElement("div");
@@ -190,8 +286,16 @@ function renderSessions(sessions: RecentSession[]) {
 
 // ─── UI update ───────────────────────────────────────
 function updateUI(app: AppState) {
-	const { state, onMeetTab, user, lastSessionId, uploadError, recordingStartedAt, recentSessions } =
-		app;
+	const {
+		state,
+		onMeetTab,
+		user,
+		lastSessionId,
+		uploadError,
+		recordingStartedAt,
+		recentSessions,
+		usage,
+	} = app;
 
 	// Header user
 	if (user) {
@@ -216,6 +320,9 @@ function updateUI(app: AppState) {
 		return;
 	}
 
+	// Render plan badge whenever user is logged in
+	renderUsage(usage, usage?.plan.id);
+
 	switch (state) {
 		case "idle":
 			showSection(sectionIdle);
@@ -227,6 +334,10 @@ function updateUI(app: AppState) {
 		case "recording":
 			showSection(sectionRecording);
 			stopBtn.disabled = false;
+			recordingWarning.hidden = true;
+			if (usage) {
+				remainingAtRecordingStart = usage.remainingSeconds;
+			}
 			if (recordingStartedAt) {
 				startTimer(recordingStartedAt);
 			}

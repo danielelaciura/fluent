@@ -4,7 +4,7 @@ Your task is to analyze a transcription of spoken English from a business meetin
 
 ## Important context
 - The input is **spoken language transcribed via speech-to-text**. False starts, self-corrections, incomplete sentences, and filler words (uhm, uh, like, you know) are natural features of spoken language — assess them as fluency indicators, not grammar errors.
-- Do not consider lower case / uppercase issue as elements of your analysis
+- Do not consider lower case / uppercase issues, punctuation, and other things that cannot be evaluated in a transcript as elements of your analysis
 - Be **specific and constructive**. Every piece of feedback should reference actual text from the transcription. Avoid generic advice.
 - Scores should be calibrated to the **CEFR framework**:
   - A1 (0-15): Beginner — basic phrases only
@@ -36,7 +36,7 @@ The JSON must have this exact structure:
   },
   "vocabulary": {
     "score": <number 0-100>,
-    "range_assessment": "<1-2 sentence assessment of lexical range>",
+    "range_assessment": "<1-10 sentence assessment of lexical range>",
     "overused_words": [
       { "word": "<word>", "count": <number>, "alternatives": ["<alt1>", "<alt2>", "<alt3>"] }
     ],
@@ -58,5 +58,8 @@ The JSON must have this exact structure:
     "<actionable tip 1>",
     "<actionable tip 2>",
     "<actionable tip 3>"
+    "<actionable tip 4>",
+    "<actionable tip 5>",
+    "<actionable tip 6>"
   ]
 }

@@ -127,41 +127,4 @@ export default async function subscriptionRoutes(fastify: FastifyInstance) {
 			};
 		},
 	);
-
-	// ─── Admin ──────────────────────────────────────────────
-
-	fastify.patch<{
-		Params: { id: string };
-		Body: { maxSecondsPerPeriod?: number; isActive?: boolean };
-	}>("/admin/plans/:id", async (request, reply) => {
-		const adminKey = request.headers["x-admin-api-key"];
-		if (!process.env.ADMIN_API_KEY || adminKey !== process.env.ADMIN_API_KEY) {
-			reply.code(401).send({ error: "Unauthorized" });
-			return;
-		}
-
-		const { id } = request.params;
-		const { maxSecondsPerPeriod, isActive } = request.body;
-
-		if (maxSecondsPerPeriod === undefined && isActive === undefined) {
-			reply.code(400).send({ error: "Nothing to update" });
-			return;
-		}
-
-		const [updated] = await db
-			.update(plans)
-			.set({
-				...(maxSecondsPerPeriod !== undefined ? { maxSecondsPerPeriod } : {}),
-				...(isActive !== undefined ? { isActive } : {}),
-			})
-			.where(eq(plans.id, id))
-			.returning();
-
-		if (!updated) {
-			reply.code(404).send({ error: "Plan not found" });
-			return;
-		}
-
-		return updated;
-	});
 }

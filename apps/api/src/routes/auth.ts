@@ -56,7 +56,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 			.returning();
 
 		await ensureSubscription(user.id);
-		const token = signToken({ userId: user.id, email: user.email });
+		const token = signToken({ userId: user.id, email: user.email, role: user.role });
 
 		return {
 			token,
@@ -66,6 +66,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 				firstName: user.firstName,
 				lastName: user.lastName,
 				avatarUrl: user.avatarUrl,
+				role: user.role,
 			},
 		};
 	});
@@ -92,7 +93,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 			.returning();
 
 		await ensureSubscription(user.id);
-		const token = signToken({ userId: user.id, email: user.email });
+		const token = signToken({ userId: user.id, email: user.email, role: user.role });
 
 		return {
 			token,
@@ -102,6 +103,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 				firstName: user.firstName,
 				lastName: user.lastName,
 				avatarUrl: user.avatarUrl,
+				role: user.role,
 			},
 		};
 	});
@@ -114,6 +116,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 				firstName: users.firstName,
 				lastName: users.lastName,
 				avatarUrl: users.avatarUrl,
+				role: users.role,
 				createdAt: users.createdAt,
 			})
 			.from(users)

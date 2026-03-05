@@ -210,6 +210,17 @@ Key views:
 - **Progress dashboard:** Score trends over time (line chart), most common errors (recurring patterns), vocabulary growth, and fluency metrics.
 - **Settings:** Account management, notification preferences, target CEFR level goal.
 
+#### 11.5 Admin Dashboard
+
+The purpose of this app is to provide an internal tool with dashboard and lists to special some users (e.g CEO, PM, Marketing) in order to take everything the control of clients and subscription
+
+**Tech stack:** React + Vite + Tailwind CSS + Recharts.
+
+Key views:
+- **User management:** Full user management (add, edit, deactivate, delete), subscription plan manual change, User metric
+- **Subscription management:** Limits change.
+- **Analytics:** Dashboards, metrics. 
+
 ### 12. Data Model
 
 | Table | Key Fields | Notes |

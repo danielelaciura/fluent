@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import EditableName from "../components/EditableName";
 import { useLayoutContext } from "../components/Layout";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
+import { Progress } from "../components/ui/progress";
+import { Skeleton } from "../components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -14,7 +16,14 @@ import {
 	TableRow,
 } from "../components/ui/table";
 import { fetchApi } from "../lib/api";
-import { cefrColor, formatDate, formatDuration, scoreColor } from "../lib/format";
+import {
+	cefrColor,
+	formatDate,
+	formatDuration,
+	formatUsageDuration,
+	scoreColor,
+	usageBarColor,
+} from "../lib/format";
 
 interface SessionSummary {
 	id: string;
@@ -30,7 +39,30 @@ interface SessionSummary {
 	businessScore: number | null;
 }
 
+interface UsageInfo {
+	plan: { id: string; name: string; maxSeconds: number; periodType: string };
+	currentPeriod: { start: string; end: string };
+	usedSeconds: number;
+	remainingSeconds: number;
+	isLimitReached: boolean;
+	percentUsed: number;
+}
+
 const PROCESSING_STATUSES = new Set(["created", "uploading", "processing", "transcribed"]);
+
+function isIrrelevant(s: SessionSummary): boolean {
+	return (
+		s.status === "error" ||
+		(s.status === "complete" && (s.durationSeconds === null || s.durationSeconds < 30))
+	);
+}
+
+function irrelevantLabel(s: SessionSummary): string | null {
+	if (s.status === "error") return "(failed)";
+	if (s.status === "complete" && (s.durationSeconds === null || s.durationSeconds < 30))
+		return "(too short)";
+	return null;
+}
 
 function StatusBadge({ status }: { status: string }) {
 	if (status === "complete") {
@@ -78,7 +110,29 @@ export default function HomePage() {
 	const { refreshSessions: refreshSidebar } = useLayoutContext();
 	const [sessions, setSessions] = useState<SessionSummary[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [usage, setUsage] = useState<UsageInfo | null>(null);
+	const [usageLoading, setUsageLoading] = useState(true);
 	const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+	const [deletingId, setDeletingId] = useState<string | null>(null);
+
+	const handleDelete = useCallback(
+		async (e: React.MouseEvent, sessionId: string) => {
+			e.stopPropagation();
+			if (!confirm("Delete this session? This cannot be undone.")) return;
+			setDeletingId(sessionId);
+			try {
+				const res = await fetchApi(`/sessions/${sessionId}`, { method: "DELETE" });
+				if (res.ok || res.status === 204) {
+					setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+					refreshSidebar();
+				}
+			} finally {
+				setDeletingId(null);
+			}
+		},
+		[refreshSidebar],
+	);
 
 	const fetchSessions = useCallback(async () => {
 		const res = await fetchApi("/sessions?limit=20");
@@ -91,6 +145,14 @@ export default function HomePage() {
 	useEffect(() => {
 		fetchSessions().finally(() => setIsLoading(false));
 	}, [fetchSessions]);
+
+	useEffect(() => {
+		fetchApi("/users/me/usage")
+			.then(async (res) => {
+				if (res.ok) setUsage(await res.json());
+			})
+			.finally(() => setUsageLoading(false));
+	}, []);
 
 	// Polling when any session is still processing
 	useEffect(() => {
@@ -117,6 +179,63 @@ export default function HomePage() {
 		<div>
 			<h1 className="mb-6 text-2xl font-bold">Your Sessions</h1>
 
+			{/* Usage card */}
+			{usageLoading ? (
+				<Card className="mb-6">
+					<CardContent className="py-4">
+						<Skeleton className="mb-2 h-4 w-48" />
+						<Skeleton className="h-2 w-full" />
+					</CardContent>
+				</Card>
+			) : usage ? (
+				<Card className="mb-6">
+					<CardContent className="py-4">
+						<div className="mb-2 flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<span className="text-sm font-medium">Recording Usage</span>
+								<Badge
+									variant="secondary"
+									className={
+										usage.plan.id === "pro"
+											? "bg-blue-100 text-blue-700"
+											: usage.plan.id === "team"
+												? "bg-purple-100 text-purple-700"
+												: "bg-gray-100 text-gray-500"
+									}
+								>
+									{usage.plan.name}
+								</Badge>
+							</div>
+							<span className="text-sm text-muted-foreground">
+								{formatUsageDuration(usage.usedSeconds)} used of{" "}
+								{formatUsageDuration(usage.plan.maxSeconds)}{" "}
+								{usage.plan.periodType === "weekly" ? "this week" : "this month"}
+							</span>
+						</div>
+						<Progress
+							value={Math.min(100, usage.percentUsed)}
+							className="h-2"
+							style={
+								{
+									"--progress-color": usageBarColor(usage.percentUsed),
+								} as React.CSSProperties
+							}
+						/>
+						{usage.isLimitReached && (
+							<p className="mt-2 text-sm font-medium text-red-500">Limit reached</p>
+						)}
+						{usage.plan.id === "free" && !usage.isLimitReached && (
+							<p className="mt-2 text-xs text-muted-foreground">
+								Get premium AI analysis with Pro.{" "}
+								<Link to="/subscription" className="font-medium text-primary underline">
+									View Plans
+								</Link>
+							</p>
+						)}
+					</CardContent>
+				</Card>
+			) : null}
+
 			{sessions.length === 0 ? (
 				<Card>
 					<CardContent className="py-6 text-center">
@@ -142,15 +261,18 @@ export default function HomePage() {
 								<TableHead>Vocab</TableHead>
 								<TableHead>Fluency</TableHead>
 								<TableHead>Business</TableHead>
+								<TableHead className="w-10" />
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{sessions.map((s) => {
-								const isComplete = s.status === "complete";
+								const isComplete = s.status === "complete" && !isIrrelevant(s);
+								const dimmed = isIrrelevant(s);
+								const label = irrelevantLabel(s);
 								return (
 									<TableRow
 										key={s.id}
-										className="cursor-pointer"
+										className={`group cursor-pointer ${dimmed ? "opacity-50" : ""}`}
 										onClick={() => navigate(`/sessions/${s.id}`)}
 									>
 										<TableCell className="py-5 font-medium">
@@ -173,7 +295,10 @@ export default function HomePage() {
 											{formatDuration(s.durationSeconds)}
 										</TableCell>
 										<TableCell className="py-3">
-											<StatusBadge status={s.status} />
+											<div className="flex items-center gap-1.5">
+												<StatusBadge status={s.status} />
+												{label && <span className="text-xs text-muted-foreground">{label}</span>}
+											</div>
 										</TableCell>
 										{/* <TableCell className="py-3 text-center">
 											{isComplete && s.cefrLevel ? (
@@ -198,6 +323,32 @@ export default function HomePage() {
 										</TableCell>
 										<TableCell className="py-3">
 											<ScoreBar score={isComplete ? s.businessScore : null} />
+										</TableCell>
+										<TableCell className="py-3">
+											<button
+												type="button"
+												disabled={deletingId === s.id}
+												className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100 disabled:opacity-50"
+												onClick={(e) => handleDelete(e, s.id)}
+												title="Delete session"
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="16"
+													height="16"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<title>Delete</title>
+													<path d="M3 6h18" />
+													<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+													<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+												</svg>
+											</button>
 										</TableCell>
 									</TableRow>
 								);
